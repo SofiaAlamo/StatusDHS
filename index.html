@@ -519,6 +519,7 @@ function transform(csvRows) {
   };
 
   const cols = {
+    cod:          find('COD', 'Cod', 'Código', 'Codigo'),
     pais:         find('País', 'Pais'),
     opMode:       find('Operation mode', 'Operation Mode'),
     red:          find('Red'),
@@ -537,12 +538,22 @@ function transform(csvRows) {
   console.log('Columnas mapeadas:', cols);
 
   const rows = [];
+  let excluidasPorCod = 0;
   csvRows.forEach(r => {
+    // Excluir organizaciones sin COD válido (#N/A, N/A, vacío, null)
+    const cod = clean(r[cols.cod]);
+    const codNorm = cod.toUpperCase().replace(/\s+/g, '');
+    if (!cod || codNorm === '#N/A' || codNorm === 'N/A' || codNorm === '#NA' || codNorm === 'NA') {
+      excluidasPorCod++;
+      return;
+    }
+
     const pais = clean(r[cols.pais]);
     const opMode = clean(r[cols.opMode]);
     if (!pais && !opMode) return;
 
     rows.push({
+      cod: cod,
       pais: pais || 'Sin dato',
       opMode: opMode || 'Sin dato',
       red: clean(r[cols.red]) || 'Sin red',
@@ -559,7 +570,7 @@ function transform(csvRows) {
     });
   });
 
-  console.log('Filas procesadas:', rows.length, '— Sample:', rows.slice(0, 2));
+  console.log('Filas procesadas:', rows.length, '— Excluidas por COD inválido:', excluidasPorCod, '— Sample:', rows.slice(0, 2));
 
   return {
     rows,
