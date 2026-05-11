@@ -868,7 +868,43 @@ function renderSemOpMode(rows) {
 function renderSemPais(rows) {
   const groups = groupBy(rows, 'pais');
   const labels = Object.keys(groups).sort();
-  drawStacked('chart-sem-pais', labels, buildSemDatasets(labels.map(l => groups[l])));
+  drawStackedCount('chart-sem-pais', labels, buildSemDatasetsCount(labels.map(l => groups[l])));
+}
+
+function buildSemDatasetsCount(arrayOfRowsPerLabel) {
+  const keys = ['verde','amarillo','rojo','sin_dato'];
+  const colors = [COLORS.verde, COLORS.amarillo, COLORS.rojo, COLORS.sin_dato];
+  return keys.map((k, i) => ({
+    label: SEM_LABELS[k],
+    data: arrayOfRowsPerLabel.map(rs => rs.filter(r => r.semaforo === k).length),
+    backgroundColor: colors[i],
+    borderWidth: 0,
+    barThickness: 'flex',
+    maxBarThickness: 38
+  }));
+}
+
+function drawStackedCount(canvasId, labels, datasets) {
+  destroy(canvasId);
+  CHARTS[canvasId] = new Chart(document.getElementById(canvasId), {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      scales: {
+        x: { stacked: true,
+          ticks: { callback: v => Number.isInteger(v) ? v : '', stepSize: 1, color: COLORS.inkSoft, font: { family: 'Inter', size: 11 }},
+          grid:  { color: COLORS.line, drawBorder: false } },
+        y: { stacked: true,
+          ticks: { color: COLORS.ink, font: { family: 'Inter', size: 12 }},
+          grid:  { display: false, drawBorder: false } }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { backgroundColor: COLORS.ink, callbacks: { label: c => c.dataset.label + ': ' + c.parsed.x + ' colegio' + (c.parsed.x === 1 ? '' : 's') }}
+      }
+    }
+  });
 }
 
 function buildSemDatasets(arrayOfRowsPerLabel) {
