@@ -1721,12 +1721,12 @@ async function loadOnboarding() {
     }));
     const raw = [];
     texts.forEach((t, i) => { parseKickoff(t).forEach(r => { r.__origen = ORIG[i]; raw.push(r); }); });
-    KICK_ALL = mapKick(raw);
+    KICK_ALL = mapKick(raw).filter(k => k.op !== 'Baja'); // los de baja no son colegios confirmados
     // Cruce por COD con el status: docentes en PLD y vitalidad de los colegios ya en Playground
     const codKey = c => String(c || '').toUpperCase().replace(/\s+/g, '');
     const statusByCod = {};
     (RAW ? (RAW.rows || []).concat(RAW.rowsNoActivos || []) : []).forEach(s => { if (s.cod) statusByCod[codKey(s.cod)] = s; });
-    KICK_ALL.forEach(k => { const m = statusByCod[codKey(k.cod)]; k.docentesPLD = m ? m.docentesPLD : null; k.vitalidad = m ? m.vitalidad : null; k.enPlataforma = !!m; });
+    KICK_ALL.forEach(k => { const m = statusByCod[codKey(k.cod)]; k.docentesPLD = m ? m.docentesPLD : null; k.vitalidad = m ? m.vitalidad : null; k.pais = m ? m.pais : k.origen; k.enPlataforma = !!m; });
     buildOnbShell();
     renderOnbBody();
   } catch (err) {
@@ -1766,6 +1766,7 @@ function tipoOp(v) {
   const s = normKey(v);
   if (s.includes('renov')) return 'Renovación';
   if (s.includes('conquist') || s.includes('nuevo')) return 'Conquista';
+  if (s.includes('baja')) return 'Baja';
   return 'Sin dato';
 }
 
@@ -1880,6 +1881,7 @@ function renderOnbBody() {
       <tr>
         <td>${escapeHtml(k.cod)}</td>
         <td>${escapeHtml(k.colegio)}</td>
+        <td><span class="pais-cell"><span class="pais-flag" aria-hidden="true">${TM_FLAGS[k.pais] || '🏳️'}</span>${escapeHtml(k.pais || '—')}</span></td>
         <td>${escapeHtml(k.sistema)}</td>
         <td><span class="tpill ${k.op === 'Renovación' ? 'reno' : k.op === 'Conquista' ? 'conq' : 'sd'}">${escapeHtml(k.op)}</span></td>
         <td class="num">${fmt(k.contrato)}</td>
@@ -1887,13 +1889,13 @@ function renderOnbBody() {
         <td><span class="hitos">${hito('Bienvenida', stBien(k.bienvenida))}<span class="hsep"></span>${hito('Inscripción PLD', stPLD(k.statusPLD))}${hito('Diagnóstico', kbool(k.diagnostico) ? 'done' : 'pend')}<span class="hsep"></span>${hito('Rol admin', kbool(k.rolAdmin) ? 'done' : 'pend')}</span></td>
         <td class="num">${k.docentesPLD == null ? '<span class="sin-plat">—</span>' : fmt(k.docentesPLD)}</td>
         <td class="num">${k.vitalidad == null ? '<span class="sin-plat">—</span>' : k.vitalidad.toFixed(1) + '%'}</td>
-      </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--ink-mute);padding:20px">Sin colegios para este filtro.</td></tr>';
+      </tr>`).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--ink-mute);padding:20px">Sin colegios para este filtro.</td></tr>';
 
   const onbHtml = `
     <div class="block2">
       <div class="section-title2">🚀 Colegios en kick-off</div>
       <div class="b2-explainer">Todos los colegios en proceso de kick-off. Los que ya están dados de alta en Playground muestran además sus docentes en PLD y su vitalidad digital.</div>
-      <div style="overflow-x:auto"><table class="onb-table"><thead><tr><th>COD</th><th>Colegio</th><th>Sistema</th><th>Operación</th><th class="num">Licencias</th><th>Subetapa</th><th>Hitos · E1 · E2 · E3</th><th class="num">Docentes PLD</th><th class="num">Vitalidad</th></tr></thead><tbody>${onbRows}</tbody></table></div>
+      <div style="overflow-x:auto"><table class="onb-table"><thead><tr><th>COD</th><th>Colegio</th><th>País</th><th>Sistema</th><th>Operación</th><th class="num">Licencias</th><th>Subetapa</th><th>Hitos · E1 · E2 · E3</th><th class="num">Docentes PLD</th><th class="num">Vitalidad</th></tr></thead><tbody>${onbRows}</tbody></table></div>
       <div class="onb-legend">
         <span><span class="hito done">✓</span> Completado</span>
         <span><span class="hito prog">◐</span> En proceso</span>
