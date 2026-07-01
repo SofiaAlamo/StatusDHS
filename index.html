@@ -489,6 +489,7 @@
   .onb-legend { font-size: 11.5px; color: var(--ink-mute); margin-top: 12px; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
   .onb-filters { margin: 4px 0 20px; }
   .onb-filters .stat-note { display: block; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--ink-mute); font-size: 9.5px; margin-top: 1px; }
+  .onb-table .sin-plat { color: #c4c9d0; }
   .funnel-steps { display: flex; align-items: stretch; margin: 14px 0 4px; }
   .fstep { flex: 1; position: relative; padding: 16px 18px; border: 1px solid #d7dde6; }
   .fstep.s1 { background: #f4f6f9; border-radius: 8px 0 0 8px; }
@@ -1721,7 +1722,11 @@ async function loadOnboarding() {
     const raw = [];
     texts.forEach((t, i) => { parseKickoff(t).forEach(r => { r.__origen = ORIG[i]; raw.push(r); }); });
     KICK_ALL = mapKick(raw);
-    CAP_ALL = (RAW && RAW.rowsNoActivos) ? RAW.rowsNoActivos : [];
+    // Cruce por COD con el status: docentes en PLD y vitalidad de los colegios ya en Playground
+    const codKey = c => String(c || '').toUpperCase().replace(/\s+/g, '');
+    const statusByCod = {};
+    (RAW ? (RAW.rows || []).concat(RAW.rowsNoActivos || []) : []).forEach(s => { if (s.cod) statusByCod[codKey(s.cod)] = s; });
+    KICK_ALL.forEach(k => { const m = statusByCod[codKey(k.cod)]; k.docentesPLD = m ? m.docentesPLD : null; k.vitalidad = m ? m.vitalidad : null; k.enPlataforma = !!m; });
     buildOnbShell();
     renderOnbBody();
   } catch (err) {
@@ -1829,10 +1834,6 @@ function renderOnbBody() {
     (f.sist === '__all__' || k.sistema === f.sist) &&
     (f.op   === '__all__' || k.op === f.op) &&
     (f.ment === '__all__' || k.mentor === f.ment));
-  const cap = CAP_ALL.filter(r =>
-    (f.pais === '__all__' || r.pais === f.pais) &&
-    (f.ment === '__all__' || r.mentor === f.ment));
-
   const total = K.length;
   const capIni  = K.filter(k => k.etapa >= 2).length;
   const pendOnb = total - capIni;
@@ -1875,23 +1876,6 @@ function renderOnbBody() {
       </div>
     </article>`;
 
-  const capRows = cap.length ? cap.map(r => `
-      <tr><td>${escapeHtml(r.colegio)}</td>
-        <td><span class="pais-cell"><span class="pais-flag" aria-hidden="true">${TM_FLAGS[r.pais] || '🏳️'}</span>${escapeHtml(r.pais)}</span></td>
-        <td>${escapeHtml(r.mentor)}</td>
-        <td><span class="epill">${escapeHtml(r.etapa)}</span></td>
-        <td class="num">${fmt(r.docentesPLD)}</td>
-        <td class="num">${r.vitalidad == null ? '—' : r.vitalidad.toFixed(1) + '%'}</td></tr>`).join('')
-    : '<tr><td colspan="6" style="text-align:center;color:var(--ink-mute);padding:20px">Sin colegios en capacitación para este filtro.</td></tr>';
-
-  const capHtml = `
-    <div class="block2">
-      <div class="section-title2">🎓 En capacitación docente</div>
-      <div class="b2-explainer">Estos colegios se encuentran dados de alta en Playground. Ya recibieron la bienvenida y están en proceso de capacitación docente.</div>
-      <div style="overflow-x:auto"><table class="onb-table"><thead><tr><th>Colegio</th><th>País</th><th>Mentor</th><th>Etapa</th><th class="num">Docentes en PLD</th><th class="num">Vitalidad digital</th></tr></thead><tbody>${capRows}</tbody></table></div>
-      <div class="onb-note">La vitalidad acá refleja la actividad de los docentes capacitándose, no de los alumnos (que están en receso).</div>
-    </div>`;
-
   const onbRows = K.map(k => `
       <tr>
         <td>${escapeHtml(k.cod)}</td>
@@ -1901,22 +1885,24 @@ function renderOnbBody() {
         <td class="num">${fmt(k.contrato)}</td>
         <td>${escapeHtml(k.subetapa || '—')}</td>
         <td><span class="hitos">${hito('Bienvenida', stBien(k.bienvenida))}<span class="hsep"></span>${hito('Inscripción PLD', stPLD(k.statusPLD))}${hito('Diagnóstico', kbool(k.diagnostico) ? 'done' : 'pend')}<span class="hsep"></span>${hito('Rol admin', kbool(k.rolAdmin) ? 'done' : 'pend')}</span></td>
-      </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--ink-mute);padding:20px">Sin colegios para este filtro.</td></tr>';
+        <td class="num">${k.docentesPLD == null ? '<span class="sin-plat">—</span>' : fmt(k.docentesPLD)}</td>
+        <td class="num">${k.vitalidad == null ? '<span class="sin-plat">—</span>' : k.vitalidad.toFixed(1) + '%'}</td>
+      </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--ink-mute);padding:20px">Sin colegios para este filtro.</td></tr>';
 
   const onbHtml = `
     <div class="block2">
-      <div class="section-title2">🚀 En onboarding · proceso de kick-off</div>
-      <div class="b2-explainer">Todos los colegios en proceso de kick-off, estén o no dados de alta en Playground. El avance se sigue por la etapa (1 a 3) y los hitos completados.</div>
-      <div style="overflow-x:auto"><table class="onb-table"><thead><tr><th>COD</th><th>Colegio</th><th>Sistema</th><th>Operación</th><th class="num">Licencias</th><th>Subetapa</th><th>Hitos · E1 · E2 · E3</th></tr></thead><tbody>${onbRows}</tbody></table></div>
+      <div class="section-title2">🚀 Colegios en kick-off</div>
+      <div class="b2-explainer">Todos los colegios en proceso de kick-off. Los que ya están dados de alta en Playground muestran además sus docentes en PLD y su vitalidad digital.</div>
+      <div style="overflow-x:auto"><table class="onb-table"><thead><tr><th>COD</th><th>Colegio</th><th>Sistema</th><th>Operación</th><th class="num">Licencias</th><th>Subetapa</th><th>Hitos · E1 · E2 · E3</th><th class="num">Docentes PLD</th><th class="num">Vitalidad</th></tr></thead><tbody>${onbRows}</tbody></table></div>
       <div class="onb-legend">
         <span><span class="hito done">✓</span> Completado</span>
         <span><span class="hito prog">◐</span> En proceso</span>
         <span><span class="hito pend">○</span> Pendiente</span>
-        <span style="margin-left:auto">E1 bienvenida + minuta · E2 inscripción PLD + diagnóstico · E3 rol admin</span>
+        <span style="margin-left:auto">Docentes PLD y vitalidad: solo colegios ya en Playground · la vitalidad refleja la actividad de los docentes capacitándose</span>
       </div>
     </div>`;
 
-  document.getElementById('onb-body').innerHTML = kpiHtml + funnelHtml + capHtml + onbHtml;
+  document.getElementById('onb-body').innerHTML = kpiHtml + funnelHtml + onbHtml;
 
   const pill2 = document.getElementById('tabpill-onb');
   if (pill2) pill2.textContent = KICK_ALL.length;
