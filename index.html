@@ -487,6 +487,17 @@
   .hsep { display: inline-block; width: 1px; height: 16px; background: #d4d9e0; margin: 0 2px; }
   .onb-note { font-size: 11.5px; color: var(--ink-mute); margin-top: 12px; }
   .onb-legend { font-size: 11.5px; color: var(--ink-mute); margin-top: 12px; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+  .onb-filters { margin: 4px 0 20px; }
+  .funnel-steps { display: flex; align-items: stretch; margin: 14px 0 4px; }
+  .fstep { flex: 1; position: relative; padding: 16px 18px; border: 1px solid #d7dde6; }
+  .fstep.s1 { background: #f4f6f9; border-radius: 8px 0 0 8px; }
+  .fstep.s2 { background: #e8edf4; padding-left: 28px; }
+  .fstep.s3 { background: #dbe3ef; border-radius: 0 8px 8px 0; padding-left: 28px; }
+  .fstep::after { content: ''; position: absolute; right: -11px; top: 50%; transform: translateY(-50%) rotate(45deg); width: 20px; height: 20px; background: inherit; border-right: 1px solid #d7dde6; border-top: 1px solid #d7dde6; z-index: 2; }
+  .fstep.s3::after { display: none; }
+  .fstep .fs-n { font-family: var(--cond); font-size: 32px; font-weight: 700; line-height: 1; color: #2c3a54; }
+  .fstep .fs-t { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #5a6b8c; font-weight: 700; margin-top: 8px; }
+  .fstep .fs-d { font-size: 11px; color: var(--ink-mute); margin-top: 3px; }
 </style>
 </head>
 <body>
@@ -520,7 +531,7 @@
     </header>
     <nav class="tabbar">
       <button class="tab active" data-tab="impl">Implementación · ciclo activo <span class="tabpill" id="tabpill-impl">—</span></button>
-      <button class="tab" data-tab="onb">Onboarding y capacitación <span class="tabpill" id="tabpill-onb">…</span></button>
+      <button class="tab" data-tab="onb">Kick-off próximo ciclo <span class="tabpill" id="tabpill-onb">…</span></button>
     </nav>
   </div>
 </div>
@@ -1694,22 +1705,31 @@ function switchTab(name) {
   if (onb)  onb.classList.toggle('hidden',  name !== 'onb');
 }
 
+let KICK_ALL = [];
+let CAP_ALL = [];
+
 async function loadOnboarding() {
   const cont = document.getElementById('onb-content');
   try {
+    const ORIG = ['México', 'CAN', 'Colombia']; // orden de CSV_URL_KICKOFF: MX, CAN, CO
     const texts = await Promise.all(CSV_URL_KICKOFF.map(async u => {
       const res = await fetch(u);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       return res.text();
     }));
-    let kick = [];
-    texts.forEach(t => { kick = kick.concat(parseKickoff(t)); });
-    renderOnboarding(kick);
+    const raw = [];
+    texts.forEach((t, i) => { parseKickoff(t).forEach(r => { r.__origen = ORIG[i]; raw.push(r); }); });
+    KICK_ALL = mapKick(raw);
+    CAP_ALL = (RAW && RAW.rowsNoActivos) ? RAW.rowsNoActivos : [];
+    buildOnbShell();
+    renderOnbBody();
   } catch (err) {
     console.error('Onboarding:', err);
     if (cont) cont.innerHTML = '<div class="onb-error">No se pudieron cargar los datos de kick-off.<br><small>' + escapeHtml(err.message || String(err)) + '</small></div>';
   }
 }
+
+function pldAceptada(v) { return normKey(v).includes('invitacion aceptada'); }
 
 // Parseo robusto: encuentra la fila de encabezado (la que tiene COD),
 // así ignora la fila de agrupación "ETAPA 1 DE 3 / 2 DE 3 / 3 DE 3" si está arriba.
@@ -1743,55 +1763,93 @@ function tipoOp(v) {
   return 'Sin dato';
 }
 
-function renderOnboarding(kickRows) {
-  const cont = document.getElementById('onb-content');
-  const H = kickRows.length ? Object.keys(kickRows[0]) : [];
+function mapKick(rows) {
+  const H = rows.length ? Object.keys(rows[0]).filter(k => k !== '__origen') : [];
   const c = {
     sist: pick(H,'Sistema'), cod: pick(H,'COD'), col: pick(H,'Colegio','Nombre Normalizado Colegio'),
     ment: pick(H,'Mentor'), sub: pick(H,'Subetapa de implementación','Subetapa de implementacion'),
     op: pick(H,'Tipo de operación','Tipo de operacion'), contrato: pick(H,'Contrato'),
-    bien: pick(H,'Onboarding y bienvenida'), pld: pick(H,'Status PLD'),
+    bien: pick(H,'Onboarding y bienvenida'), minuta: pick(H,'Minuta enviado'), pld: pick(H,'Status PLD'),
     diag: pick(H,'Diagnóstico','Diagnostico'), rol: pick(H,'Rol admin e inicio mentoría','Rol admin e inicio mentoria')
   };
+  return rows.map(r => {
+    const statusPLD = r[c.pld];
+    const rolDone = kbool(r[c.rol]);
+    const pldAcc = pldAceptada(statusPLD);
+    let etapa = 1;                 // Etapa 1 por defecto (bienvenida / minuta)
+    if (rolDone) etapa = 3;        // Etapa 3: rol admin e inicio mentoría
+    else if (pldAcc) etapa = 2;    // Etapa 2: PLD con invitación aceptada (total o parcial)
+    return {
+      origen: r.__origen || '—',
+      sistema: clean(r[c.sist]) || '—',
+      cod: clean(r[c.cod]),
+      colegio: clean(r[c.col]) || 'Sin nombre',
+      mentor: clean(r[c.ment]) || 'Sin asignar',
+      subetapa: clean(r[c.sub]),
+      etapa: etapa,
+      op: tipoOp(r[c.op]),
+      contrato: parseNum(r[c.contrato]),
+      bienvenida: r[c.bien], minuta: r[c.minuta], statusPLD: statusPLD, diagnostico: r[c.diag], rolAdmin: r[c.rol]
+    };
+  });
+}
 
-  const K = kickRows.map(r => ({
-    sistema: clean(r[c.sist]) || '—',
-    cod: clean(r[c.cod]),
-    colegio: clean(r[c.col]) || 'Sin nombre',
-    mentor: clean(r[c.ment]) || 'Sin asignar',
-    subetapa: clean(r[c.sub]),
-    etapaN: etapaNum(r[c.sub]),
-    op: tipoOp(r[c.op]),
-    contrato: parseNum(r[c.contrato]),
-    bienvenida: r[c.bien], statusPLD: r[c.pld], diagnostico: r[c.diag], rolAdmin: r[c.rol]
-  }));
+function buildOnbShell() {
+  const cont = document.getElementById('onb-content');
+  const uq = arr => [...new Set(arr.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'es'));
+  const opts = vals => '<option value="__all__">Todos</option>' + uq(vals).map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+  cont.innerHTML = `
+    <section class="filters onb-filters">
+      <div class="filter"><label for="onbf-pais">País</label><select id="onbf-pais">${opts(KICK_ALL.map(k => k.origen))}</select></div>
+      <div class="filter"><label for="onbf-sist">Sistema</label><select id="onbf-sist">${opts(KICK_ALL.map(k => k.sistema))}</select></div>
+      <div class="filter"><label for="onbf-op">Tipo de operación</label><select id="onbf-op">${opts(KICK_ALL.map(k => k.op))}</select></div>
+      <div class="filter"><label for="onbf-ment">Mentor</label><select id="onbf-ment">${opts(KICK_ALL.map(k => k.mentor))}</select></div>
+    </section>
+    <div id="onb-body"></div>`;
+  ['onbf-pais','onbf-sist','onbf-op','onbf-ment'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.addEventListener('change', renderOnbBody);
+  });
+}
+
+function onbFilters() {
+  const g = id => { const e = document.getElementById(id); return e ? e.value : '__all__'; };
+  return { pais: g('onbf-pais'), sist: g('onbf-sist'), op: g('onbf-op'), ment: g('onbf-ment') };
+}
+
+function renderOnbBody() {
+  const f = onbFilters();
+  const K = KICK_ALL.filter(k =>
+    (f.pais === '__all__' || k.origen === f.pais) &&
+    (f.sist === '__all__' || k.sistema === f.sist) &&
+    (f.op   === '__all__' || k.op === f.op) &&
+    (f.ment === '__all__' || k.mentor === f.ment));
+  const cap = CAP_ALL.filter(r =>
+    (f.pais === '__all__' || r.pais === f.pais) &&
+    (f.ment === '__all__' || r.mentor === f.ment));
 
   const total = K.length;
-  const capIni  = K.filter(k => k.etapaN >= 2).length;
+  const capIni  = K.filter(k => k.etapa >= 2).length;
   const pendOnb = total - capIni;
   const renov = K.filter(k => k.op === 'Renovación').length;
   const conq  = K.filter(k => k.op === 'Conquista').length;
   const sinOp = K.filter(k => k.op === 'Sin dato').length;
   const estConf = K.reduce((s, k) => s + (k.contrato || 0), 0);
 
-  const e1 = K.filter(k => k.etapaN === 1).length;
-  const e2 = K.filter(k => k.etapaN === 2).length;
-  const e3 = K.filter(k => k.etapaN === 3).length;
-  const sinSub = K.filter(k => !k.etapaN).length;
-  const fmax = Math.max(1, e1, e2, e3);
-  const fw = n => Math.max(2, Math.round(n / fmax * 100));
-
-  const cap = (RAW && RAW.rowsNoActivos) ? RAW.rowsNoActivos : [];
+  // Recorrido acumulado: cuántos llegaron a cada etapa
+  const rE1 = total;
+  const rE2 = K.filter(k => k.etapa >= 2).length;
+  const rE3 = K.filter(k => k.etapa >= 3).length;
+  const pct = n => total ? Math.round(n / total * 100) : 0;
 
   const hito = (label, state) => `<span class="hito ${state}">${label}</span>`;
   const stBien = v => { const s = normKey(v); if (s.includes('no aplica') || s === 'na') return 'na'; return kbool(v) ? 'done' : 'pend'; };
-  const stPLD  = v => { const s = normKey(v); if (s.includes('enviado')) return 'prog'; return kbool(v) ? 'done' : 'pend'; };
+  const stPLD  = v => { const s = normKey(v); if (s.includes('invitacion aceptada') && !s.includes('parcial')) return 'done'; if (s.includes('parcial') || s.includes('invitacion aceptada') || s.includes('enviado')) return 'prog'; return 'pend'; };
 
   const kpiHtml = `
     <div class="kpi-row">
       <div class="kpi-card"><div class="k-num">${total}</div><div class="k-lbl">Total colegios confirmados</div><div class="k-sub">En planilla de kick-off</div></div>
-      <div class="kpi-card"><div class="k-num">${capIni}</div><div class="k-lbl">Capacitación iniciada</div><div class="k-sub">Con hito en Etapa 2</div></div>
-      <div class="kpi-card"><div class="k-num">${pendOnb}</div><div class="k-lbl">Pendientes de onboarding</div><div class="k-sub">Aún en Etapa 1 / sin iniciar</div></div>
+      <div class="kpi-card"><div class="k-num">${capIni}</div><div class="k-lbl">Capacitación iniciada</div><div class="k-sub">PLD con invitación aceptada</div></div>
+      <div class="kpi-card"><div class="k-num">${pendOnb}</div><div class="k-lbl">Pendientes de onboarding</div><div class="k-sub">Aún en Etapa 1</div></div>
       <div class="kpi-card"><div class="k-num">${renov}</div><div class="k-lbl">Renovación</div><div class="k-sub">&nbsp;</div></div>
       <div class="kpi-card"><div class="k-num">${conq}</div><div class="k-lbl">Conquista</div><div class="k-sub">${sinOp} sin clasificar</div></div>
       <div class="kpi-card"><div class="k-num">${fmt(estConf)}</div><div class="k-lbl">Estudiantes confirmados</div><div class="k-sub">Suma de estudiantes en contrato</div></div>
@@ -1799,11 +1857,12 @@ function renderOnboarding(kickRows) {
 
   const funnelHtml = `
     <article class="card span-12" style="margin-bottom:18px">
-      <h2>Embudo de onboarding · por etapa de kick-off</h2><div class="subtitle">Fuente: planilla de kick-off · ${total} colegios</div>
-      <div class="frow"><div class="flbl">Etapa 1 de 3<small>Onboarding y bienvenida</small></div><div class="fbar"><span style="width:${fw(e1)}%;background:#aab4c4"></span></div><div class="fnum">${e1}</div></div>
-      <div class="frow"><div class="flbl">Etapa 2 de 3<small>Minuta · inscripción PLD · diagnóstico</small></div><div class="fbar"><span style="width:${fw(e2)}%;background:#7d8aa3"></span></div><div class="fnum">${e2}</div></div>
-      <div class="frow"><div class="flbl">Etapa 3 de 3<small>Rol admin e inicio mentoría</small></div><div class="fbar"><span style="width:${fw(e3)}%;background:#50607f"></span></div><div class="fnum">${e3}</div></div>
-      ${sinSub ? `<div class="onb-note">+ ${sinSub} colegios sin subetapa asignada todavía.</div>` : ''}
+      <h2>Recorrido de kick-off</h2><div class="subtitle">Cuántos colegios llegaron a cada etapa · ${total} en total</div>
+      <div class="funnel-steps">
+        <div class="fstep s1"><div class="fs-n">${rE1}</div><div class="fs-t">Etapa 1 · Bienvenida y minuta</div><div class="fs-d">Todos ingresan</div></div>
+        <div class="fstep s2"><div class="fs-n">${rE2}</div><div class="fs-t">Etapa 2 · Inscripción PLD y diagnóstico</div><div class="fs-d">${pct(rE2)}% · PLD con invitación aceptada</div></div>
+        <div class="fstep s3"><div class="fs-n">${rE3}</div><div class="fs-t">Etapa 3 · Rol admin e inicio mentoría</div><div class="fs-d">${pct(rE3)}%</div></div>
+      </div>
     </article>`;
 
   const capRows = cap.length ? cap.map(r => `
@@ -1813,7 +1872,7 @@ function renderOnboarding(kickRows) {
         <td><span class="epill">${escapeHtml(r.etapa)}</span></td>
         <td class="num">${fmt(r.docentesPLD)}</td>
         <td class="num">${r.vitalidad == null ? '—' : r.vitalidad.toFixed(1) + '%'}</td></tr>`).join('')
-    : '<tr><td colspan="6" style="text-align:center;color:var(--ink-mute);padding:20px">Sin colegios en capacitación por ahora.</td></tr>';
+    : '<tr><td colspan="6" style="text-align:center;color:var(--ink-mute);padding:20px">Sin colegios en capacitación para este filtro.</td></tr>';
 
   const capHtml = `
     <div class="block2">
@@ -1832,7 +1891,7 @@ function renderOnboarding(kickRows) {
         <td class="num">${fmt(k.contrato)}</td>
         <td>${escapeHtml(k.subetapa || '—')}</td>
         <td><span class="hitos">${hito('Bienvenida', stBien(k.bienvenida))}<span class="hsep"></span>${hito('Inscripción PLD', stPLD(k.statusPLD))}${hito('Diagnóstico', kbool(k.diagnostico) ? 'done' : 'pend')}<span class="hsep"></span>${hito('Rol admin', kbool(k.rolAdmin) ? 'done' : 'pend')}</span></td>
-      </tr>`).join('');
+      </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--ink-mute);padding:20px">Sin colegios para este filtro.</td></tr>';
 
   const onbHtml = `
     <div class="block2">
@@ -1844,14 +1903,14 @@ function renderOnboarding(kickRows) {
         <span><span class="hito prog">◐</span> En proceso</span>
         <span><span class="hito pend">○</span> Pendiente</span>
         <span><span class="hito na">N/A</span> No aplica</span>
-        <span style="margin-left:auto">E1 bienvenida · E2 inscripción PLD + diagnóstico · E3 rol admin · Total licencias: <b>${fmt(estConf)}</b></span>
+        <span style="margin-left:auto">E1 bienvenida + minuta · E2 inscripción PLD + diagnóstico · E3 rol admin</span>
       </div>
     </div>`;
 
-  cont.innerHTML = kpiHtml + funnelHtml + capHtml + onbHtml;
+  document.getElementById('onb-body').innerHTML = kpiHtml + funnelHtml + capHtml + onbHtml;
 
   const pill2 = document.getElementById('tabpill-onb');
-  if (pill2) pill2.textContent = (cap.length + total);
+  if (pill2) pill2.textContent = KICK_ALL.length;
 }
 </script>
 </body>
