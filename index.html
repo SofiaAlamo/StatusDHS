@@ -488,6 +488,7 @@
   .onb-note { font-size: 11.5px; color: var(--ink-mute); margin-top: 12px; }
   .onb-legend { font-size: 11.5px; color: var(--ink-mute); margin-top: 12px; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
   .onb-filters { margin: 4px 0 20px; }
+  .onb-filters .stat-note { display: block; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--ink-mute); font-size: 9.5px; margin-top: 1px; }
   .funnel-steps { display: flex; align-items: stretch; margin: 14px 0 4px; }
   .fstep { flex: 1; position: relative; padding: 16px 18px; border: 1px solid #d7dde6; }
   .fstep.s1 { background: #f4f6f9; border-radius: 8px 0 0 8px; }
@@ -1804,6 +1805,11 @@ function buildOnbShell() {
       <div class="filter"><label for="onbf-sist">Sistema</label><select id="onbf-sist">${opts(KICK_ALL.map(k => k.sistema))}</select></div>
       <div class="filter"><label for="onbf-op">Tipo de operación</label><select id="onbf-op">${opts(KICK_ALL.map(k => k.op))}</select></div>
       <div class="filter"><label for="onbf-ment">Mentor</label><select id="onbf-ment">${opts(KICK_ALL.map(k => k.mentor))}</select></div>
+      <div class="filter-stats">
+        <div class="stat"><div class="num" id="onbstat-renov">—</div><div class="lbl">Renovación<span class="stat-note" id="onbstat-sinclas"></span></div></div>
+        <div class="stat"><div class="num" id="onbstat-conq">—</div><div class="lbl">Conquista</div></div>
+        <div class="stat"><div class="num" id="onbstat-est">—</div><div class="lbl">Estudiantes confirmados</div></div>
+      </div>
     </section>
     <div id="onb-body"></div>`;
   ['onbf-pais','onbf-sist','onbf-op','onbf-ment'].forEach(id => {
@@ -1835,6 +1841,13 @@ function renderOnbBody() {
   const sinOp = K.filter(k => k.op === 'Sin dato').length;
   const estConf = K.reduce((s, k) => s + (k.contrato || 0), 0);
 
+  const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  setTxt('onbstat-renov', renov);
+  setTxt('onbstat-conq', conq);
+  setTxt('onbstat-est', fmt(estConf));
+  const scEl = document.getElementById('onbstat-sinclas');
+  if (scEl) scEl.textContent = sinOp ? `${sinOp} sin clasificar` : '';
+
   // Recorrido acumulado: cuántos llegaron a cada etapa
   const rE1 = total;
   const rE2 = K.filter(k => k.etapa >= 2).length;
@@ -1842,24 +1855,21 @@ function renderOnbBody() {
   const pct = n => total ? Math.round(n / total * 100) : 0;
 
   const hito = (label, state) => `<span class="hito ${state}">${label}</span>`;
-  const stBien = v => { const s = normKey(v); if (s.includes('no aplica') || s === 'na') return 'na'; return kbool(v) ? 'done' : 'pend'; };
+  const stBien = v => { const s = normKey(v); if (s.includes('no aplica')) return 'done'; if (s.includes('realizada parcial')) return 'prog'; if (s.includes('realizada')) return 'done'; if (s.includes('agendada')) return 'prog'; return kbool(v) ? 'done' : 'pend'; };
   const stPLD  = v => { const s = normKey(v); if (s.includes('invitacion aceptada') && !s.includes('parcial')) return 'done'; if (s.includes('parcial') || s.includes('invitacion aceptada') || s.includes('enviado')) return 'prog'; return 'pend'; };
 
   const kpiHtml = `
     <div class="kpi-row">
-      <div class="kpi-card"><div class="k-num">${total}</div><div class="k-lbl">Total colegios confirmados</div><div class="k-sub">En planilla de kick-off</div></div>
-      <div class="kpi-card"><div class="k-num">${capIni}</div><div class="k-lbl">Capacitación iniciada</div><div class="k-sub">PLD con invitación aceptada</div></div>
+      <div class="kpi-card"><div class="k-num">${total}</div><div class="k-lbl">Total colegios confirmados</div><div class="k-sub">&nbsp;</div></div>
       <div class="kpi-card"><div class="k-num">${pendOnb}</div><div class="k-lbl">Pendientes de onboarding</div><div class="k-sub">Aún en Etapa 1</div></div>
-      <div class="kpi-card"><div class="k-num">${renov}</div><div class="k-lbl">Renovación</div><div class="k-sub">&nbsp;</div></div>
-      <div class="kpi-card"><div class="k-num">${conq}</div><div class="k-lbl">Conquista</div><div class="k-sub">${sinOp} sin clasificar</div></div>
-      <div class="kpi-card"><div class="k-num">${fmt(estConf)}</div><div class="k-lbl">Estudiantes confirmados</div><div class="k-sub">Suma de estudiantes en contrato</div></div>
+      <div class="kpi-card"><div class="k-num">${capIni}</div><div class="k-lbl">Capacitación iniciada</div><div class="k-sub">PLD con invitación aceptada</div></div>
     </div>`;
 
   const funnelHtml = `
     <article class="card span-12" style="margin-bottom:18px">
       <h2>Recorrido de kick-off</h2><div class="subtitle">Cuántos colegios llegaron a cada etapa · ${total} en total</div>
       <div class="funnel-steps">
-        <div class="fstep s1"><div class="fs-n">${rE1}</div><div class="fs-t">Etapa 1 · Bienvenida y minuta</div><div class="fs-d">Todos ingresan</div></div>
+        <div class="fstep s1"><div class="fs-n">${rE1}</div><div class="fs-t">Etapa 1 · Bienvenida y minuta</div><div class="fs-d">Iniciaron el proceso</div></div>
         <div class="fstep s2"><div class="fs-n">${rE2}</div><div class="fs-t">Etapa 2 · Inscripción PLD y diagnóstico</div><div class="fs-d">${pct(rE2)}% · PLD con invitación aceptada</div></div>
         <div class="fstep s3"><div class="fs-n">${rE3}</div><div class="fs-t">Etapa 3 · Rol admin e inicio mentoría</div><div class="fs-d">${pct(rE3)}%</div></div>
       </div>
@@ -1877,7 +1887,7 @@ function renderOnbBody() {
   const capHtml = `
     <div class="block2">
       <div class="section-title2">🎓 En capacitación docente</div>
-      <div class="b2-explainer">Estos colegios se encuentran en receso escolar. Ya recibieron la bienvenida y están en proceso de capacitación docente; en las próximas semanas se irá inscribiendo al resto de los equipos. <b>Fuente: planilla de status.</b></div>
+      <div class="b2-explainer">Estos colegios se encuentran dados de alta en Playground. Ya recibieron la bienvenida y están en proceso de capacitación docente.</div>
       <div style="overflow-x:auto"><table class="onb-table"><thead><tr><th>Colegio</th><th>País</th><th>Mentor</th><th>Etapa</th><th class="num">Docentes en PLD</th><th class="num">Vitalidad digital</th></tr></thead><tbody>${capRows}</tbody></table></div>
       <div class="onb-note">La vitalidad acá refleja la actividad de los docentes capacitándose, no de los alumnos (que están en receso).</div>
     </div>`;
@@ -1896,13 +1906,12 @@ function renderOnbBody() {
   const onbHtml = `
     <div class="block2">
       <div class="section-title2">🚀 En onboarding · proceso de kick-off</div>
-      <div class="b2-explainer">Todos los colegios en proceso de kick-off, estén o no dados de alta en Playground. El avance se sigue por la etapa (1 a 3) y los hitos completados. <b>Fuente: planilla de kick-off.</b></div>
+      <div class="b2-explainer">Todos los colegios en proceso de kick-off, estén o no dados de alta en Playground. El avance se sigue por la etapa (1 a 3) y los hitos completados.</div>
       <div style="overflow-x:auto"><table class="onb-table"><thead><tr><th>COD</th><th>Colegio</th><th>Sistema</th><th>Operación</th><th class="num">Licencias</th><th>Subetapa</th><th>Hitos · E1 · E2 · E3</th></tr></thead><tbody>${onbRows}</tbody></table></div>
       <div class="onb-legend">
         <span><span class="hito done">✓</span> Completado</span>
         <span><span class="hito prog">◐</span> En proceso</span>
         <span><span class="hito pend">○</span> Pendiente</span>
-        <span><span class="hito na">N/A</span> No aplica</span>
         <span style="margin-left:auto">E1 bienvenida + minuta · E2 inscripción PLD + diagnóstico · E3 rol admin</span>
       </div>
     </div>`;
