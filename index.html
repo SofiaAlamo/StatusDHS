@@ -505,8 +505,9 @@
   tr.avrow.has-av { cursor: pointer; }
   tr.avrow.has-av:hover { background: #f6f8fb; }
   tr.avrow.has-av.open { background: #f1f5fb; }
-  .av-chev { display:inline-block; width:13px; color:#8a97ab; font-size:11px; margin-right:6px; transition:transform .18s; }
-  tr.avrow.open .av-chev { transform:rotate(90deg); color:#33507d; }
+  .av-chev { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:#eef2f7; color:#33507d; font-size:13px; font-weight:700; margin-right:9px; vertical-align:middle; transition:transform .18s, background .15s; }
+  tr.avrow.has-av:hover .av-chev { background:#dde6f3; }
+  tr.avrow.open .av-chev { transform:rotate(90deg); background:#33507d; color:#fff; }
   tr.av-detail > td { padding:0; background:#fbfcfd; }
   .av-inner { padding:6px 20px 20px 40px; }
   .av-empty { padding:16px 0; color:var(--ink-mute); font-size:13px; }
@@ -573,6 +574,17 @@
   @media(max-width:720px){ .mn-sch{grid-template-columns:1fr;gap:6px;} .mn-sc{text-align:left;} .av-track{grid-template-columns:1fr;gap:4px;} .av-tc{text-align:left;} }
   .onb-table th.gc, .onb-table td.gc { text-align:center; }
   .birrete { font-size:15px; }
+  .onb-table th.osort { cursor:pointer; user-select:none; white-space:nowrap; }
+  .onb-table th.osort:hover { background:#e3e9f2; }
+  .onb-table th .oarrow { color:#c0c8d4; font-size:10px; margin-left:1px; }
+  .onb-table th.sorted .oarrow { color:#33507d; }
+  .funnel-steps .fstep { cursor:pointer; transition:filter .12s; }
+  .funnel-steps .fstep:hover { filter:brightness(.97); }
+  .funnel-steps .fstep.active { box-shadow: inset 0 0 0 2px #33507d; }
+  .funnel-steps .fstep.active .fs-n { color:#1f3a63; }
+  .onb-fchip { display:inline-flex; align-items:center; gap:9px; background:#eef2f7; border:1px solid #d7dde6; border-radius:50px; padding:5px 8px 5px 14px; font-size:12.5px; color:#33507d; font-weight:600; margin:0 0 14px; }
+  .onb-fchip button { border:none; background:#33507d; color:#fff; border-radius:50%; width:18px; height:18px; cursor:pointer; font-size:11px; line-height:1; display:inline-flex; align-items:center; justify-content:center; }
+  .onb-fchip button:hover { background:#22375c; }
 </style>
 </head>
 <body>
@@ -607,7 +619,6 @@
     <nav class="tabbar">
       <button class="tab active" data-tab="impl">Implementación · ciclo activo <span class="tabpill" id="tabpill-impl">—</span></button>
       <button class="tab" data-tab="onb">Kick-off próximo ciclo <span class="tabpill" id="tabpill-onb">…</span></button>
-      <button class="tab" data-tab="mentores">Seguimiento · mentores</button>
     </nav>
   </div>
 </div>
@@ -703,10 +714,6 @@
 
   <section id="tab-onb" class="hidden">
     <div id="onb-content"><div class="onb-loading">Cargando datos de onboarding y capacitación…</div></div>
-  </section>
-
-  <section id="tab-mentores" class="hidden">
-    <div id="mentores-content"><div class="onb-loading">Cargando avance por mentor…</div></div>
   </section>
 </div>
 
@@ -1916,23 +1923,26 @@ function onbFilters() {
   return { pais: g('onbf-pais'), sist: g('onbf-sist'), op: g('onbf-op'), ment: g('onbf-ment') };
 }
 
+let ONB_SORT = { col: null, dir: 'asc' };
+let ONB_ETAPA = null;
+
 function renderOnbBody() {
   const f = onbFilters();
-  const K = KICK_ALL.filter(k =>
+  const Kbase = KICK_ALL.filter(k =>
     (f.pais === '__all__' || k.pais === f.pais) &&
     (f.sist === '__all__' || k.sistema === f.sist) &&
     (f.op   === '__all__' || k.op === f.op) &&
     (f.ment === '__all__' || k.mentor === f.ment));
 
-  const total = K.length;                          // confirmados (subetapa cargada, sin baja)
-  const rE1 = K.filter(k => k.etapa >= 1).length;  // bienvenida realizada / no aplica (o más)
-  const rE2 = K.filter(k => k.etapa >= 2).length;  // PLD aceptada / parcial (o más)
-  const rE3 = K.filter(k => k.etapa >= 3).length;  // rol admin realizada
-  const pendOnb = total - rE1;                      // confirmados con bienvenida aún pendiente
-  const renov = K.filter(k => k.op === 'Renovación').length;
-  const conq  = K.filter(k => k.op === 'Conquista').length;
-  const sinOp = K.filter(k => k.op === 'Sin dato').length;
-  const estConf = K.reduce((s, k) => s + (k.contrato || 0), 0);
+  const total = Kbase.length;
+  const rE1 = Kbase.filter(k => k.etapa >= 1).length;
+  const rE2 = Kbase.filter(k => k.etapa >= 2).length;
+  const rE3 = Kbase.filter(k => k.etapa >= 3).length;
+  const pendOnb = total - rE1;
+  const renov = Kbase.filter(k => k.op === 'Renovación').length;
+  const conq  = Kbase.filter(k => k.op === 'Conquista').length;
+  const sinOp = Kbase.filter(k => k.op === 'Sin dato').length;
+  const estConf = Kbase.reduce((s, k) => s + (k.contrato || 0), 0);
   const pct = n => total ? Math.round(n / total * 100) : 0;
 
   const hito = (label, state) => `<span class="hito ${state}">${label}</span>`;
@@ -1947,17 +1957,45 @@ function renderOnbBody() {
       <div class="kpi-card"><div class="k-num">${rE2}</div><div class="k-lbl">Capacitación iniciada</div><div class="k-sub">PLD con invitación aceptada</div></div>
     </div>`;
 
+  const act = n => ONB_ETAPA === n ? ' active' : '';
   const funnelHtml = `
     <article class="card span-12" style="margin-bottom:18px">
-      <h2>Recorrido de kick-off</h2><div class="subtitle">Cuántos colegios llegaron a cada etapa · ${total} confirmados en total</div>
+      <h2>Recorrido de kick-off</h2><div class="subtitle">Tocá una etapa para filtrar la tabla · ${total} confirmados en total</div>
       <div class="funnel-steps">
-        <div class="fstep s1"><div class="fs-n">${rE1}</div><div class="fs-t">Etapa 1 · Onboarding y bienvenida</div><div class="fs-d">${pct(rE1)}% · Bienvenida realizada o no aplica</div></div>
-        <div class="fstep s2"><div class="fs-n">${rE2}</div><div class="fs-t">Etapa 2 · Inscripción PLD y diagnóstico</div><div class="fs-d">${pct(rE2)}% · PLD con invitación aceptada</div></div>
-        <div class="fstep s3"><div class="fs-n">${rE3}</div><div class="fs-t">Etapa 3 · Rol admin e inicio mentoría</div><div class="fs-d">${pct(rE3)}% · Rol admin realizada</div></div>
+        <div class="fstep s1${act(1)}" data-etapa="1"><div class="fs-n">${rE1}</div><div class="fs-t">Etapa 1 · Onboarding y bienvenida</div><div class="fs-d">${pct(rE1)}% · Bienvenida realizada o no aplica</div></div>
+        <div class="fstep s2${act(2)}" data-etapa="2"><div class="fs-n">${rE2}</div><div class="fs-t">Etapa 2 · Inscripción PLD y diagnóstico</div><div class="fs-d">${pct(rE2)}% · PLD con invitación aceptada</div></div>
+        <div class="fstep s3${act(3)}" data-etapa="3"><div class="fs-n">${rE3}</div><div class="fs-t">Etapa 3 · Rol admin e inicio mentoría</div><div class="fs-d">${pct(rE3)}% · Rol admin realizada</div></div>
       </div>
     </article>`;
 
-  const onbRows = K.map(k => `
+  // Tabla: base + filtro por etapa del embudo (acumulado, coincide con el número del paso) + orden por columna
+  let Ktab = ONB_ETAPA ? Kbase.filter(k => k.etapa >= ONB_ETAPA) : Kbase.slice();
+  const grad = k => (AVANCE_BY_COD[codKeyAv(k.cod)] && AVANCE_BY_COD[codKeyAv(k.cod)].graduado) ? 1 : 0;
+  const TXT = ['cod','colegio','pais','sistema','op','subetapa'];
+  if (ONB_SORT.col) {
+    const c = ONB_SORT.col, d = ONB_SORT.dir === 'asc' ? 1 : -1;
+    Ktab.sort((a, b) => {
+      let r;
+      if (c === 'grad') r = grad(a) - grad(b);
+      else if (c === 'docentesPLD') { const va = a.docentesPLD == null ? -1 : a.docentesPLD, vb = b.docentesPLD == null ? -1 : b.docentesPLD; r = va - vb; }
+      else if (TXT.includes(c)) r = String(a[c] || '').localeCompare(String(b[c] || ''), 'es');
+      else r = (a[c] || 0) - (b[c] || 0);
+      return d * r;
+    });
+  }
+
+  const COLS = [
+    { k:'cod', t:'COD' }, { k:'colegio', t:'Colegio' }, { k:'pais', t:'País' }, { k:'sistema', t:'Sistema' },
+    { k:'op', t:'Operación' }, { k:'contrato', t:'Licencias', num:true }, { k:'subetapa', t:'Subetapa' },
+    { k:'etapa', t:'Hitos · E1 · E2 · E3' }, { k:'docentesPLD', t:'Docentes PLD', num:true }, { k:'grad', t:'🎓 Graduado', gc:true }
+  ];
+  const thead = '<thead><tr>' + COLS.map(c => {
+    const arrow = ONB_SORT.col === c.k ? (ONB_SORT.dir === 'asc' ? '↑' : '↓') : '↕';
+    const cls = 'osort' + (c.num ? ' num' : '') + (c.gc ? ' gc' : '') + (ONB_SORT.col === c.k ? ' sorted' : '');
+    return `<th class="${cls}" data-osort="${c.k}">${c.t} <span class="oarrow">${arrow}</span></th>`;
+  }).join('') + '</tr></thead>';
+
+  const onbRows = Ktab.map(k => `
       <tr class="avrow" data-cod="${escapeHtml(k.cod)}" data-dpld="${k.docentesPLD == null ? '' : k.docentesPLD}">
         <td>${escapeHtml(k.cod)}</td>
         <td>${escapeHtml(k.colegio)}</td>
@@ -1968,14 +2006,18 @@ function renderOnbBody() {
         <td>${escapeHtml(k.subetapa || '—')}</td>
         <td><span class="hitos">${hito('Bienvenida', stBien(k.bienvenida))}<span class="hsep"></span>${hito('Inscripción PLD', stPLD(k.statusPLD))}${hito('Diagnóstico', kbool(k.diagnostico) ? 'done' : 'pend')}<span class="hsep"></span>${hito('Rol admin', stRol(k.rolAdmin))}</span></td>
         <td class="num">${k.docentesPLD == null ? '<span class="sin-plat">—</span>' : fmt(k.docentesPLD)}</td>
-        <td class="gc">${AVANCE_BY_COD[codKeyAv(k.cod)] && AVANCE_BY_COD[codKeyAv(k.cod)].graduado ? '<span class="birrete" title="Al menos 1 docente completó una capacitación PLD al 100%">🎓</span>' : '<span class="sin-plat">—</span>'}</td>
+        <td class="gc">${grad(k) ? '<span class="birrete" title="Al menos 1 docente completó una capacitación PLD al 100%">🎓</span>' : '<span class="sin-plat">—</span>'}</td>
       </tr>`).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--ink-mute);padding:20px">Sin colegios para este filtro.</td></tr>';
+
+  const ETLBL = { 1:'Etapa 1 · Onboarding y bienvenida', 2:'Etapa 2 · Inscripción PLD y diagnóstico', 3:'Etapa 3 · Rol admin e inicio mentoría' };
+  const chip = ONB_ETAPA ? `<div class="onb-fchip">Mostrando ${ETLBL[ONB_ETAPA]} · ${Ktab.length} colegio(s) <button id="onb-clear" title="Quitar filtro">✕</button></div>` : '';
 
   const onbHtml = `
     <div class="block2">
       <div class="section-title2">🚀 Colegios en kick-off</div>
       <div class="b2-explainer">Colegios confirmados (con subetapa de implementación cargada) en proceso de kick-off. Los que ya están en Playground muestran sus docentes en PLD. El birrete 🎓 marca colegios donde al menos un docente completó una capacitación al 100%.</div>
-      <div style="overflow-x:auto"><table class="onb-table"><thead><tr><th>COD</th><th>Colegio</th><th>País</th><th>Sistema</th><th>Operación</th><th class="num">Licencias</th><th>Subetapa</th><th>Hitos · E1 · E2 · E3</th><th class="num">Docentes PLD</th><th class="gc">🎓 Graduado</th></tr></thead><tbody>${onbRows}</tbody></table></div>
+      ${chip}
+      <div style="overflow-x:auto"><table class="onb-table">${thead}<tbody>${onbRows}</tbody></table></div>
       <div class="onb-legend">
         <span><span class="hito done">✓</span> Completado</span>
         <span><span class="hito prog">◐</span> En proceso</span>
@@ -1985,6 +2027,20 @@ function renderOnbBody() {
     </div>`;
 
   document.getElementById('onb-body').innerHTML = kpiHtml + funnelHtml + onbHtml;
+
+  document.querySelectorAll('#onb-body .fstep').forEach(step => step.addEventListener('click', () => {
+    const n = Number(step.dataset.etapa);
+    ONB_ETAPA = ONB_ETAPA === n ? null : n;
+    renderOnbBody();
+  }));
+  document.querySelectorAll('#onb-body .onb-table th.osort').forEach(th => th.addEventListener('click', () => {
+    const k = th.dataset.osort;
+    if (ONB_SORT.col === k) ONB_SORT.dir = ONB_SORT.dir === 'asc' ? 'desc' : 'asc';
+    else { ONB_SORT.col = k; ONB_SORT.dir = 'asc'; }
+    renderOnbBody();
+  }));
+  const clr = document.getElementById('onb-clear');
+  if (clr) clr.addEventListener('click', e => { e.stopPropagation(); ONB_ETAPA = null; renderOnbBody(); });
 
   const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
   setTxt('onbstat-total', total);
@@ -2132,111 +2188,6 @@ document.addEventListener('click', e => {
   tr.parentNode.insertBefore(det, tr.nextSibling);
   tr.classList.add('open');
 });
-
-/* ═══════════ SEGUIMIENTO POR MENTOR (solo interno) ═══════════ */
-let MENTOR_SORT = 'avg';
-function mentorByCod() {
-  const m = {};
-  const add = (cod, mentor) => { if (!cod) return; const k = codKeyAv(cod); if (!m[k] && mentor && normKey(mentor) !== 'sin asignar') m[k] = mentor; };
-  if (RAW) (RAW.rows||[]).concat(RAW.rowsNoActivos||[]).forEach(r => add(r.cod, r.mentor));
-  if (typeof KICK_ALL !== 'undefined') (KICK_ALL||[]).forEach(k => add(k.cod, k.mentor));
-  return m;
-}
-function infoByCod() {
-  const info = {};
-  const add = (cod, colegio, pais) => { const k = codKeyAv(cod); if (k && !info[k]) info[k] = { colegio: colegio || k, pais: pais || '\u2014' }; };
-  if (RAW) (RAW.rows||[]).concat(RAW.rowsNoActivos||[]).forEach(r => add(r.cod, r.colegio, r.pais));
-  if (typeof KICK_ALL !== 'undefined') (KICK_ALL||[]).forEach(k => add(k.cod, k.colegio, k.pais));
-  return info;
-}
-function buildMentores() {
-  const cm = mentorByCod(), info = infoByCod(), by = {};
-  Object.entries(AVANCE_BY_COD).forEach(([cod, c]) => {
-    if (!c.nDoc) return;
-    const mentor = cm[cod] || 'Sin asignar';
-    const inf = info[cod] || {};
-    const g = (by[mentor] = by[mentor] || { mentor, colegios: [] });
-    g.colegios.push({ cod, colegio: inf.colegio || cod, pais: inf.pais || '\u2014', nDoc: c.nDoc, nInscr: c.nInscr, prom: c.prom, act: c.activos, dorm: c.dormidos });
-  });
-  return Object.values(by);
-}
-function mentorStats(m) {
-  const nCol = m.colegios.length;
-  const nDoc = m.colegios.reduce((s,c)=>s+c.nDoc,0);
-  const totInscr = m.colegios.reduce((s,c)=>s+c.nInscr,0);
-  const prom = totInscr ? Math.round(m.colegios.reduce((s,c)=>s+c.prom*c.nInscr,0)/totInscr) : 0;
-  const act = m.colegios.reduce((s,c)=>s+c.act,0);
-  const dorm = m.colegios.reduce((s,c)=>s+c.dorm,0);
-  return { nCol, nDoc, prom, act, dorm };
-}
-function mnBar(pct){ const l=avLvl(pct); return `<span class="av-bar"><span class="avb-track"><span class="avb-fill ${l}" style="width:${pct}%"></span></span><span class="avb-pct ${l}">${pct}%</span></span>`; }
-function renderMentores() {
-  const cont = document.getElementById('mentores-content');
-  if (!cont) return;
-  if (!AVANCE_LOADED) { cont.innerHTML = '<div class="onb-loading">Cargando avance por mentor\u2026</div>'; return; }
-  const data = buildMentores();
-  if (!data.length) { cont.innerHTML = '<div class="onb-loading">Todav\u00eda no hay datos de avance para cruzar con mentores.</div>'; return; }
-  const all = data.map(mentorStats);
-  const totInscr = data.reduce((s,m)=>s+m.colegios.reduce((a,c)=>a+c.nInscr,0),0);
-  const wavg = totInscr ? Math.round(data.reduce((s,m)=>s+m.colegios.reduce((a,c)=>a+c.prom*c.nInscr,0),0)/totInscr) : 0;
-  const strip = `
-    <div class="mn-strip">
-      <div class="mn-k"><div class="n">${data.length}</div><div class="t">Mentores</div><div class="s">con colegios en PLD</div></div>
-      <div class="mn-k"><div class="n">${wavg}%</div><div class="t">Avance regional</div><div class="s">promedio por inscripci\u00f3n</div></div>
-      <div class="mn-k"><div class="n">${all.reduce((s,x)=>s+x.nDoc,0)}</div><div class="t">Docentes en PLD</div><div class="s">en toda la regi\u00f3n</div></div>
-      <div class="mn-k warn"><div class="n">${all.reduce((s,x)=>s+x.dorm,0)}</div><div class="t">Docentes dormidos</div><div class="s">+14 d\u00edas sin ingresar</div></div>
-    </div>`;
-  const toolbar = `
-    <div class="mn-toolbar"><span class="mn-lbl">Ordenar por</span>
-      <div class="seg mn-seg">
-        <button data-sort="avg" class="${MENTOR_SORT==='avg'?'active':''}">Avance (menor primero)</button>
-        <button data-sort="dorm" class="${MENTOR_SORT==='dorm'?'active':''}">Docentes dormidos</button>
-        <button data-sort="col" class="${MENTOR_SORT==='col'?'active':''}">Cantidad de colegios</button>
-      </div>
-    </div>`;
-  const arr = data.map(m=>({m, st:mentorStats(m)}));
-  if (MENTOR_SORT==='avg') arr.sort((a,b)=>a.st.prom-b.st.prom);
-  else if (MENTOR_SORT==='dorm') arr.sort((a,b)=>b.st.dorm-a.st.dorm);
-  else arr.sort((a,b)=>b.st.nCol-a.st.nCol);
-  const sortedList = arr.map(x=>x.m);
-  const rows = arr.map(({m,st},idx)=>`
-    <tr class="mn-row" data-idx="${idx}">
-      <td><span class="mn-chev">\u25B8</span></td>
-      <td><span class="mn-name">${escapeHtml(m.mentor)}</span></td>
-      <td class="num">${st.nCol}</td>
-      <td class="num">${st.nDoc}</td>
-      <td>${mnBar(st.prom)}</td>
-      <td class="num"><span class="av-chip act">${st.act}</span></td>
-      <td class="num"><span class="av-chip ${st.dorm>=3?'alert':'neu'}">${st.dorm}</span></td>
-    </tr>
-    <tr class="mn-detail" data-detail="${idx}" style="display:none"><td colspan="7"><div class="mn-inner" id="mn-inner-${idx}"></div></td></tr>`).join('');
-  cont.innerHTML = strip + toolbar + `
-    <div class="tcard2"><table class="mn-table"><thead><tr>
-      <th style="width:26px"></th><th>Mentor</th><th class="num">Colegios</th><th class="num">Docentes</th>
-      <th style="min-width:160px">Avance promedio</th><th class="num">Activos</th><th class="num">Dormidos +14d</th>
-    </tr></thead><tbody>${rows}</tbody></table></div>
-    <div class="note-box2">El avance del mentor es el promedio (por inscripci\u00f3n) del avance en PLD de los docentes de sus colegios. Un promedio bajo puede ser un colegio complejo o un arranque reciente: abr\u00ed cada mentor para ver colegio por colegio.</div>`;
-  cont.querySelectorAll('.mn-seg button').forEach(b=>b.addEventListener('click',()=>{ MENTOR_SORT=b.dataset.sort; renderMentores(); }));
-  cont.querySelectorAll('.mn-row').forEach(r=>r.addEventListener('click',()=>toggleMentor(+r.dataset.idx, sortedList)));
-}
-function toggleMentor(idx, list){
-  const det = document.querySelector(`.mn-detail[data-detail="${idx}"]`);
-  const row = document.querySelector(`.mn-row[data-idx="${idx}"]`);
-  if (!det) return;
-  if (det.style.display !== 'none') { det.style.display='none'; row.classList.remove('open'); return; }
-  const m = list[idx];
-  const cols = [...m.colegios].sort((a,b)=>a.prom-b.prom);
-  document.getElementById('mn-inner-'+idx).innerHTML = `<h4>Colegios a cargo \u00b7 ordenados por avance</h4>` + cols.map(c=>{
-    const l=avLvl(c.prom), col = l==='hi'?'#2ea25a':l==='mid'?'#e0a92b':'#cdd3db';
-    return `<div class="mn-sch">
-      <div class="mn-sn">${escapeHtml(c.colegio)}<small>${escapeHtml(c.cod)} \u00b7 ${c.nDoc} docentes en PLD</small></div>
-      <div class="av-brow"><span class="av-t2"><span class="av-f2" style="width:${c.prom}%;background:${col}"></span></span><span class="av-p2">${c.prom}%</span></div>
-      <div class="mn-sc"><span class="av-chip act">${c.act} activos</span></div>
-      <div class="mn-sc">${c.dorm>0?`<span class="av-chip ${c.dorm>=3?'alert':'neu'}">${c.dorm} dormidos</span>`:'<span class="av-chip neu">0 dormidos</span>'}</div>
-    </div>`;
-  }).join('');
-  det.style.display=''; row.classList.add('open');
-}
 
 </script>
 </body>
