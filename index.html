@@ -310,11 +310,8 @@
   .sem-dot.sin_dato { background: var(--gris); }
 
   .vitalidad-cell { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; width: 100%; }
-  .pct-bar { width: 50px; height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; position: relative; }
-  .pct-bar::after { content: ''; display: block; height: 100%; background: var(--dh-yellow); width: var(--w, 0%); }
-  .pct-bar.rojo::after     { background: var(--rojo); }
-  .pct-bar.amarillo::after { background: var(--amarillo); }
-  .pct-bar.verde::after    { background: var(--verde); }
+  .vitalidad-bar { width: 50px; height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; position: relative; }
+  .vitalidad-bar::after { content: ''; display: block; height: 100%; background: var(--dh-yellow); width: var(--w, 0%); }
 
   .pais-cell { display: inline-flex; align-items: center; gap: 8px; line-height: 1; }
   .pais-flag { font-size: 1.05em; line-height: 1; font-family: "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Twemoji Mozilla",sans-serif; }
@@ -705,8 +702,6 @@
             <th data-sort="mentor">Mentor <span class="arrow">↕</span></th>
             <th class="center" data-sort="semaforo">Semáforo <span class="arrow">↕</span></th>
             <th class="num" data-sort="estudiantes">Estudiantes <span class="arrow">↕</span></th>
-            <th class="num" data-sort="avanceTotal" style="white-space:normal;min-width:94px">Avance ruta <span class="arrow">↕</span><small style="display:block;font-weight:600;text-transform:none;letter-spacing:0;font-size:9px;color:var(--ink-mute)">alumnos · prom.</small></th>
-            <th class="num" data-sort="avanceOblig" style="white-space:normal;min-width:94px">Avance oblig. <span class="arrow">↕</span><small style="display:block;font-weight:600;text-transform:none;letter-spacing:0;font-size:9px;color:var(--ink-mute)">alumnos · prom.</small></th>
             <th class="num" data-sort="docentesPLD">Docentes PLD <span class="arrow">↕</span></th>
             <th class="num" data-sort="rutasTotales">Rutas <span class="arrow">↕</span></th>
             <th class="num" data-sort="vitalidad">Vitalidad <span class="arrow">↕</span></th>
@@ -744,6 +739,25 @@
       .certif-sum td { font-size:12.5px; padding:7px 8px; border-bottom:1px solid var(--line); }
       .certif-sum tbody tr:last-child td { border-bottom:none; }
       .certif-sum tr.tot td { font-weight:700; background:#fafafa; }
+      .chev { display:inline-block; width:15px; color:var(--ink-mute); font-size:10px; }
+      .chev-none { display:inline-block; width:15px; }
+      tr.certif-esc { cursor:pointer; }
+      tr.certif-esc:hover { background:#fffbee; }
+      tr.certif-esc.open { background:#fffdf3; }
+      tr.certif-panel > td { background:#fcfcfa; padding:0; border-bottom:1px solid var(--line); }
+      .certif-panel-in { padding:6px 14px 14px 34px; }
+      .certif-nivel-title { font-family:"Barlow Condensed",sans-serif; font-weight:700; font-size:13px; text-transform:uppercase; letter-spacing:.03em; margin:8px 0 6px; }
+      .certif-nivel-empty { padding:10px 0; color:var(--ink-mute); font-size:12px; }
+      table.certif-niv { width:100%; max-width:640px; border-collapse:collapse; background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+      table.certif-niv th { font-size:9px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-mute); font-weight:700; text-align:left; padding:7px 10px; background:var(--bg); border-bottom:1px solid var(--line); }
+      table.certif-niv th.num, table.certif-niv td.num { text-align:right; }
+      table.certif-niv td { padding:7px 10px; font-size:12px; border-bottom:1px solid #eee; }
+      table.certif-niv tbody tr:last-child td { border-bottom:none; }
+      .niv-badge { display:inline-block; background:#111; color:#fff; font-family:"Barlow Condensed",sans-serif; font-weight:700; font-size:11px; letter-spacing:.04em; padding:2px 8px; border-radius:5px; }
+      .barwrap { display:inline-flex; align-items:center; gap:8px; justify-content:flex-end; }
+      .cbar { position:relative; width:90px; height:8px; border-radius:5px; background:#ececec; overflow:hidden; }
+      .cbar > i { position:absolute; left:0; top:0; bottom:0; background:var(--dh-yellow, #FFC72C); border-radius:5px; }
+      .cpct { font-weight:700; font-size:11.5px; min-width:44px; text-align:right; }
     </style>
     <div id="certif-content"><div class="onb-loading">Cargando certificaciones otorgadas…</div></div>
   </section>
@@ -835,8 +849,6 @@ function transform(csvRows) {
     comunicacion: find('Comunicación', 'Comunicacion', 'Tipo de Comunicación'),
     rutasTotales: find('Rutas totales', 'Cantidad de rutas'),
     estudiantes:  find('Estudiantes (alumnos)', 'Estudiantes', 'Cantidad de Estudiantes'),
-    avanceTotal:  find('% progreso total (prom)', '% progreso total (prom.)', '% progreso total'),
-    avanceOblig:  find('% progreso obligatorio (prom)', '% progreso obligatorio (prom.)', '% progreso obligatorio'),
     docentes:     find('Docentes en PLD', 'Cantidad de Docentes en PLD'),
     mentor:       find('Mentor'),
     colegio:      find('Nombre en PG', 'Nombre en PG del Colegio'),
@@ -872,8 +884,6 @@ function transform(csvRows) {
       tipoComunicacion: clean(r[cols.comunicacion]) || 'Sin dato',
       rutasTotales: parseNum(r[cols.rutasTotales]),
       estudiantes: parseNum(r[cols.estudiantes]),
-      avanceTotal: parsePct(r[cols.avanceTotal]),
-      avanceOblig: parsePct(r[cols.avanceOblig]),
       docentesPLD: parseNum(r[cols.docentes]),
       mentor: clean(r[cols.mentor]) || 'Sin asignar',
       colegio: clean(r[cols.colegio]) || 'Sin nombre',
@@ -1060,7 +1070,6 @@ function boot() {
   if (pill1) pill1.textContent = RAW.rows.length;
   setupTabs();
   loadOnboarding().catch(e => console.error('Onboarding:', e));
-  loadCertif().catch(e => console.error('Certificaciones:', e));
   loadAvance();
 }
 
@@ -1748,10 +1757,10 @@ function renderColegios(rowsArg) {
       r = (SEM_ORDER[a.semaforo] ?? 99) - (SEM_ORDER[b.semaforo] ?? 99);
     } else if (textCols.includes(col)) {
       r = String(a[col] || '').localeCompare(String(b[col] || ''), 'es');
-    } else if (col === 'vitalidad' || col === 'avanceTotal' || col === 'avanceOblig') {
+    } else if (col === 'vitalidad') {
       // null al final
-      const va = a[col] == null ? -1 : a[col];
-      const vb = b[col] == null ? -1 : b[col];
+      const va = a.vitalidad == null ? -1 : a.vitalidad;
+      const vb = b.vitalidad == null ? -1 : b.vitalidad;
       r = va - vb;
     } else {
       r = (a[col] || 0) - (b[col] || 0);
@@ -1769,17 +1778,14 @@ function renderColegios(rowsArg) {
 
   const tbody = document.querySelector('#tbl-colegios tbody');
   if (!arr.length) {
-    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--ink-mute);padding:24px">Sin colegios para los filtros seleccionados.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--ink-mute);padding:24px">Sin colegios para los filtros seleccionados.</td></tr>';
     return;
   }
 
-  const barNeutra = v => v == null ? '—'
-    : `<span class="vitalidad-cell"><span class="pct-bar" style="--w:${Math.min(100, Math.max(0, v))}%"></span>${v.toFixed(1)}%</span>`;
   tbody.innerHTML = arr.map(r => {
-    const vitCls = r.vitalidad == null ? '' : (r.vitalidad < 35 ? 'rojo' : r.vitalidad < 75 ? 'amarillo' : 'verde');
     const vit = r.vitalidad == null ? '—'
       : `<span class="vitalidad-cell">
-           <span class="pct-bar ${vitCls}" style="--w:${Math.min(100, Math.max(0, r.vitalidad))}%"></span>
+           <span class="vitalidad-bar" style="--w:${Math.min(100, Math.max(0, r.vitalidad))}%"></span>
            ${r.vitalidad.toFixed(1)}%
          </span>`;
     return `
@@ -1790,8 +1796,6 @@ function renderColegios(rowsArg) {
         <td>${escapeHtml(r.mentor)}</td>
         <td class="center"><span class="sem-dot ${r.semaforo}" title="${SEM_LABELS[r.semaforo]}"></span></td>
         <td class="num">${fmt(r.estudiantes)}</td>
-        <td class="num">${barNeutra(r.avanceTotal)}</td>
-        <td class="num">${barNeutra(r.avanceOblig)}</td>
         <td class="num">${fmt(r.docentesPLD)}</td>
         <td class="num">${fmt(r.rutasTotales)}</td>
         <td class="num">${vit}</td>
@@ -1833,7 +1837,10 @@ function switchTab(name) {
   const SEC = { impl: 'dashboard', onb: 'tab-onb', mentores: 'tab-mentores', certif: 'tab-certif' };
   Object.entries(SEC).forEach(([n, id]) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', n !== name); });
   if (name === 'mentores' && typeof renderMentores === 'function') renderMentores();
-  if (name === 'certif' && typeof CERTIF_LOADED !== 'undefined' && CERTIF_LOADED) renderCertifBody();
+  if (name === 'certif') {
+    if (typeof CERTIF_LOADED !== 'undefined' && CERTIF_LOADED) renderCertifBody();
+    else if (typeof loadCertif === 'function') loadCertif().catch(e => console.error('Certificaciones:', e));
+  }
 }
 
 let KICK_ALL = [];
@@ -2101,7 +2108,11 @@ function renderOnbBody() {
 /* Lee la hoja "Certificaciones" (gid 1709700298) del mismo Status_Schools 2026.
    Requiere que esa pestaña esté publicada en la web (Archivo → Compartir → Publicar en la web). */
 const CSV_URL_CORE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSPFRKVvwUioC_7rKCblIMz7Cu7qvQpQI8LJM982dThQkT_hLqaJgwU2Js8OhEZag4aJ3_5GCfvzSwd/pub?gid=1092641323&single=true&output=csv';
-const CSV_URL_CERTIF = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSPFRKVvwUioC_7rKCblIMz7Cu7qvQpQI8LJM982dThQkT_hLqaJgwU2Js8OhEZag4aJ3_5GCfvzSwd/pub?gid=1709700298&single=true&output=csv';
+const CSV_URL_CERTIF = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSPFRKVvwUioC_7rKCblIMz7Cu7qvQpQI8LJM982dThQkT_hLqaJgwU2Js8OhEZag4aJ3_5GCfvzSwd/pub?gid=804956092&single=true&output=csv';
+const CSV_URL_DETALLE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSPFRKVvwUioC_7rKCblIMz7Cu7qvQpQI8LJM982dThQkT_hLqaJgwU2Js8OhEZag4aJ3_5GCfvzSwd/pub?gid=110796896&single=true&output=csv';
+const DETALLE_CICLO = '2024/2025';
+let DETALLE_BY_COD = {};
+const CERTIF_EXPANDED = new Set();
 let CERTIF_ALL = [];
 let CERTIF_LOADED = false;
 let CERTIF_SORT = { key: 'certif', dir: 'desc' };
@@ -2200,12 +2211,78 @@ function parseCore(text) {
   return out;
 }
 
+function isDetalleCiclo(ano) {
+  const a = String(ano || '').replace(/[^0-9]/g, '');
+  const d = String(DETALLE_CICLO).replace(/[^0-9]/g, '');
+  if (!a || !d) return false;
+  return a === d || d.includes(a) || a.includes(d);
+}
+
+function buildDetalle(text) {
+  const arr = (Papa.parse(text, { skipEmptyLines: true }).data) || [];
+  let hi = arr.findIndex(r => Array.isArray(r) && r.some(c => { const k = normKey(c); return k === 'escuela' || k === 'cod'; }));
+  if (hi < 0) hi = 0;
+  const H = arr[hi];
+  const iCod = certColIdx(H, 'Escuela', 'COD', 'Cod', 'Colegio');
+  const iBase = certColIdx(H, 'Ruta Base', 'RutaBase', 'Ruta base');
+  const iEmail = certColIdx(H, 'Email', 'Correo', 'E-mail', 'Mail');
+  let iTot = certColIdx(H, 'Cursos completos / Cursos totales', 'Cursos completos/Cursos totales');
+  let iObl = certColIdx(H, 'Cursos obligatorios completos / Cursos obligatorios total', 'Cursos obligatorios completos / Cursos obligatorios totales');
+  if (iTot < 0) iTot = H.findIndex(h => /cursos.*completos.*cursos.*total/i.test(String(h)) && !/obligatori/i.test(String(h)));
+  if (iObl < 0) iObl = H.findIndex(h => /obligatori.*completos/i.test(String(h)));
+  const frac = v => { const m = String(v || '').match(/(-?\d+)\s*\/\s*(-?\d+)/); return m ? [parseInt(m[1], 10), parseInt(m[2], 10)] : [null, null]; };
+  const nivOf = rb => { const m = String(rb || '').trim().match(/^([A-Za-z0-9]+)/); return m ? m[1].toUpperCase() : ''; };
+  const map = {};
+  for (let r = hi + 1; r < arr.length; r++) {
+    const row = arr[r]; if (!Array.isArray(row)) continue;
+    const cod = clean(iCod >= 0 ? row[iCod] : ''); if (!cod) continue;
+    const niv = nivOf(iBase >= 0 ? row[iBase] : ''); if (!niv) continue;
+    const email = clean(iEmail >= 0 ? row[iEmail] : '').toLowerCase();
+    const [cc, ct] = frac(iTot >= 0 ? row[iTot] : '');
+    const [oc, ot] = frac(iObl >= 0 ? row[iObl] : '');
+    const k = codKeyC(cod);
+    const school = map[k] || (map[k] = { niveles: {} });
+    const n = school.niveles[niv] || (school.niveles[niv] = { nivel: niv, emails: new Set(), comp: 0, tot: 0, obligComp: 0, obligTot: 0 });
+    n.emails.add(email || ('r' + r));
+    if (cc != null) n.comp += cc; if (ct != null) n.tot += ct;
+    if (oc != null) n.obligComp += oc; if (ot != null) n.obligTot += ot;
+  }
+  return map;
+}
+
+const NIVEL_ORDER = ['KOF1', 'KOF2', 'KOF3', 'WEB1', 'WEB2', 'WEB3', 'ST1P', 'ST2P', 'DATA', 'DMST', 'PYTH'];
+
+function certifNivelPanel(cod) {
+  const d = DETALLE_BY_COD[codKeyC(cod)];
+  if (!d) return '<div class="certif-nivel-empty">Sin detalle de avance para este ciclo.</div>';
+  const nivs = Object.values(d.niveles).sort((a, b) => {
+    const ia = NIVEL_ORDER.indexOf(a.nivel), ib = NIVEL_ORDER.indexOf(b.nivel);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.nivel.localeCompare(b.nivel);
+  });
+  const pct = (n, t) => t > 0 ? (n / t * 100) : null;
+  const bar = v => {
+    if (v == null) return '<span class="sin-plat">—</span>';
+    const w = Math.max(0, Math.min(100, v));
+    return '<div class="barwrap"><span class="cbar"><i style="width:' + w.toFixed(1) + '%"></i></span><span class="cpct">' + (Math.round(v * 10) / 10).toString().replace('.', ',') + '%</span></div>';
+  };
+  const body = nivs.map(n =>
+    '<tr><td><span class="niv-badge">' + escapeHtml(n.nivel) + '</span></td>' +
+    '<td class="num">' + n.emails.size.toLocaleString('es-AR') + '</td>' +
+    '<td class="num">' + bar(pct(n.comp, n.tot)) + '</td>' +
+    '<td class="num">' + bar(pct(n.obligComp, n.obligTot)) + '</td></tr>'
+  ).join('');
+  return '<div class="certif-nivel-title">Avance por nivel · ciclo ' + escapeHtml(DETALLE_CICLO) + '</div>' +
+    '<table class="certif-niv"><thead><tr><th>Nivel</th><th class="num">Estudiantes</th><th class="num">Avance total</th><th class="num">Avance obligatorio</th></tr></thead><tbody>' + body + '</tbody></table>';
+}
+
 async function loadCertif() {
   const cont = document.getElementById('certif-content');
   try {
-    const [certifRes, coreRes] = await Promise.all([fetch(CSV_URL_CERTIF), fetch(CSV_URL_CORE)]);
+    const [certifRes, coreRes, detRes] = await Promise.all([fetch(CSV_URL_CERTIF), fetch(CSV_URL_CORE), fetch(CSV_URL_DETALLE)]);
     if (!certifRes.ok) throw new Error('HTTP ' + certifRes.status);
     const rows = parseCertif(await certifRes.text());
+    // Detalle de avance por alumno → agregado por COD × nivel (para el desplegable)
+    DETALLE_BY_COD = detRes.ok ? buildDetalle(await detRes.text()) : {};
     // Cruce contra Core 2026 (fuente completa de opmode/red/país/calendario/mentor); RAW como respaldo
     const coreByCod = {};
     if (coreRes.ok) parseCore(await coreRes.text()).forEach(s => { if (s.cod) coreByCod[codKeyC(s.cod)] = s; });
@@ -2362,24 +2439,35 @@ function renderCertifBody() {
     '<th class="num ' + cls('tn') + '" data-k="tn">Aprob. no oblig. ' + arrow('tn') + '</th>' +
     (hasAno ? '<th class="' + cls('ano') + '" data-k="ano">Año/Ciclo ' + arrow('ano') + '</th>' : '') +
     '</tr></thead>';
-  const body = rows.map(c => '<tr>' +
-    '<td><span class="cert-cod">' + escapeHtml(c.cod) + '</span> · <b>' + escapeHtml(c.escuela) + '</b></td>' +
-    '<td>' + escapeHtml(c.pais) + '</td>' +
-    '<td class="num">' + num(c.rutas) + '</td>' +
-    '<td class="num">' + num(c.estudiantes) + '</td>' +
-    '<td class="num">' + num(c.inscripciones) + '</td>' +
-    '<td class="num">' + num(c.certificados) + '</td>' +
-    '<td class="num">' + tagTC(c) + '</td>' +
-    '<td class="num">' + plain(c.toRaw) + '</td>' +
-    '<td class="num">' + plain(c.tnRaw) + '</td>' +
-    (hasAno ? '<td>' + (c.ano ? escapeHtml(c.ano) : nd) + '</td>' : '') +
-    '</tr>').join('');
   const colspan = hasAno ? 10 : 9;
+  const canExpand = c => !!(DETALLE_BY_COD[codKeyC(c.cod)] && isDetalleCiclo(c.ano));
+  const rowKeyOf = c => (codKeyC(c.cod) + '_' + String(c.ano || '')).replace(/[^A-Za-z0-9_]/g, '');
+  const body = rows.map(c => {
+    const hasDet = canExpand(c);
+    const rk = rowKeyOf(c);
+    const open = hasDet && CERTIF_EXPANDED.has(rk);
+    const chev = hasDet ? '<span class="chev">' + (open ? '\u25be' : '\u25b8') + '</span>' : '<span class="chev-none"></span>';
+    const attrs = hasDet ? ' class="certif-esc' + (open ? ' open' : '') + '" data-key="' + rk + '" data-cod="' + escapeHtml(c.cod) + '"' : '';
+    let tr = '<tr' + attrs + '>' +
+      '<td>' + chev + '<span class="cert-cod">' + escapeHtml(c.cod) + '</span> \u00b7 <b>' + escapeHtml(c.escuela) + '</b></td>' +
+      '<td>' + escapeHtml(c.pais) + '</td>' +
+      '<td class="num">' + num(c.rutas) + '</td>' +
+      '<td class="num">' + num(c.estudiantes) + '</td>' +
+      '<td class="num">' + num(c.inscripciones) + '</td>' +
+      '<td class="num">' + num(c.certificados) + '</td>' +
+      '<td class="num">' + tagTC(c) + '</td>' +
+      '<td class="num">' + plain(c.toRaw) + '</td>' +
+      '<td class="num">' + plain(c.tnRaw) + '</td>' +
+      (hasAno ? '<td>' + (c.ano ? escapeHtml(c.ano) : nd) + '</td>' : '') +
+      '</tr>';
+    if (open) tr += '<tr class="certif-panel" data-panel-for="' + rk + '"><td colspan="' + colspan + '"><div class="certif-panel-in">' + certifNivelPanel(c.cod) + '</div></td></tr>';
+    return tr;
+  }).join('');
   const empty = '<tr><td colspan="' + colspan + '" style="text-align:center;color:var(--ink-mute);padding:24px">Sin certificaciones para los filtros seleccionados.</td></tr>';
   const foot = '<div class="certif-foot">* Tasa de certificación = certificados / inscripciones del ciclo. Semáforo: ' +
     '<span class="dot" style="color:var(--rojo)">●</span> &lt;30% · ' +
     '<span class="dot" style="color:var(--amarillo)">●</span> 30–50% · ' +
-    '<span class="dot" style="color:var(--verde)">●</span> &gt;50%. Celdas vacías en la hoja se muestran como “—”.</div>';
+    '<span class="dot" style="color:var(--verde)">●</span> &gt;50%. Celdas vacías en la hoja se muestran como “—”. Colegios con ▸ tienen detalle de avance por nivel (clic para desplegar).</div>';
   document.getElementById('certif-body').innerHTML =
     '<div style="overflow-x:auto"><table class="onb-table">' + thead + '<tbody>' + (body || empty) + '</tbody></table></div>' + foot;
   document.querySelectorAll('#certif-body .onb-table th.osort').forEach(th => th.addEventListener('click', () => {
@@ -2387,6 +2475,18 @@ function renderCertifBody() {
     if (CERTIF_SORT.key === k) CERTIF_SORT.dir = CERTIF_SORT.dir === 'asc' ? 'desc' : 'asc';
     else CERTIF_SORT = { key: k, dir: (k === 'colegio' || k === 'pais' || k === 'ano') ? 'asc' : 'desc' };
     renderCertifBody();
+  }));
+  document.querySelectorAll('#certif-body .certif-esc').forEach(tr => tr.addEventListener('click', () => {
+    const key = tr.dataset.key, cod = tr.dataset.cod, tbody = tr.parentNode;
+    const existing = tbody.querySelector('tr.certif-panel[data-panel-for="' + key + '"]');
+    const ch = tr.querySelector('.chev');
+    if (existing) { existing.remove(); CERTIF_EXPANDED.delete(key); if (ch) ch.textContent = '\u25b8'; tr.classList.remove('open'); }
+    else {
+      const panel = document.createElement('tr');
+      panel.className = 'certif-panel'; panel.setAttribute('data-panel-for', key);
+      panel.innerHTML = '<td colspan="' + tr.children.length + '"><div class="certif-panel-in">' + certifNivelPanel(cod) + '</div></td>';
+      tr.after(panel); CERTIF_EXPANDED.add(key); if (ch) ch.textContent = '\u25be'; tr.classList.add('open');
+    }
   }));
 }
 
