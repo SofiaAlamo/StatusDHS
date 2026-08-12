@@ -779,6 +779,25 @@
       .tile .cap { font-size:9.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-mute); font-weight:700; margin-top:3px; }
       .destacado { margin-top:10px; background:#fbfbf7; border:1px dashed #e2d9b8; border-radius:8px; padding:9px 11px; font-size:11.5px; line-height:1.5; }
       .star { color:var(--amarillo); font-weight:700; }
+      .tiles3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+      .cursos { margin-top:12px; border-top:1px solid var(--line); padding-top:11px; }
+      .cursos .top { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
+      .cursos .top b { font-family:"Barlow Condensed",sans-serif; font-size:22px; }
+      .cursos .top .tot { font-size:13px; color:var(--ink-mute); font-weight:400; }
+      .cursos .top .lbl { font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-mute); font-weight:700; }
+      .cbar { margin:6px 0; }
+      .cbar .l { display:flex; justify-content:space-between; font-size:10.5px; margin-bottom:2px; }
+      .cbar .l .muted { color:var(--ink-mute); }
+      .cbar .track { height:9px; background:#eee; border-radius:5px; overflow:hidden; }
+      .cbar .track > i { display:block; height:100%; border-radius:5px; }
+      .ment { display:flex; flex-direction:column; gap:10px; }
+      .mrow { display:flex; align-items:center; gap:12px; padding:8px 10px; border:1px solid var(--line); border-radius:9px; background:#fff; }
+      .mrow .name { font-weight:700; font-size:13px; }
+      .mrow .chips { margin-top:3px; display:flex; gap:6px; flex-wrap:wrap; }
+      .chip { font-size:10px; font-weight:700; padding:2px 8px; border-radius:50px; background:#f2f2f2; color:#555; }
+      .chip.g { background:rgba(39,160,90,.12); color:var(--verde); }
+      .nivlegend { display:flex; flex-wrap:wrap; gap:4px 12px; font-size:10px; color:var(--ink-mute); margin-top:8px; }
+      .nivlegend b { color:var(--ink); }
     </style>
     <div id="certif-content"><div class="onb-loading">Cargando certificaciones otorgadas…</div></div>
   </section>
@@ -2281,7 +2300,7 @@ function detalleFor(cod, ano) {
   const a = String(ano || '').replace(/[^0-9]/g, '');
   let hit = null;
   if (a) hit = keys.find(k => { const kk = String(k).replace(/[^0-9]/g, ''); return kk && (kk === a || kk.includes(a) || a.includes(kk)); });
-  if (!hit && keys.length === 1) hit = keys[0];
+  if (!hit) hit = keys.slice().sort((x, y) => String(x).replace(/[^0-9]/g, '').localeCompare(String(y).replace(/[^0-9]/g, ''))).pop(); // sin match de ciclo: usar el más reciente
   return hit ? d.ciclos[hit] : null;
 }
 
@@ -2333,9 +2352,17 @@ function aggregateDetalle(rows) {
   return byNivel;
 }
 
+function nivelNombre(niv) {
+  const N = { DATA: 'Senior Track de Data Analytics', DMST: 'Senior Track de Mindset Digital', PYTH: 'Senior Track avanzado de Python', ST1P: 'Senior Tracks Mixto con Python 1', ST2P: 'Senior Tracks Mixto con Python 2', ST3P: 'Senior Tracks Mixto con Python 3' };
+  if (N[niv]) return N[niv];
+  const m = String(niv).match(/^(KOF|WEB)(\d+)/i);
+  if (m) return (m[1].toUpperCase() === 'KOF' ? 'Kick-off' : 'Web Basics') + ' ' + m[2];
+  return niv;
+}
+
 function svgBars(items, semaforo) {
-  const W = 320, H = 150, base = 120, top = 20, n = items.length || 1;
-  const slot = (W - 16) / n, bw = Math.min(30, slot * 0.6);
+  const W = 460, H = 168, base = 118, top = 22, n = items.length || 1;
+  const slot = (W - 16) / n, bw = Math.min(34, slot * 0.55);
   const col = v => {
     if (!semaforo) return '#e9c65a';
     return v == null ? '#ddd' : v > 50 ? '#27a05a' : v < 30 ? '#c0392b' : '#d4a017';
@@ -2346,9 +2373,12 @@ function svgBars(items, semaforo) {
     const v = it.value;
     const h = v == null ? 0 : Math.max(1, (v / 100) * (base - top));
     const y = base - h;
+    s += '<g><title>' + escapeHtml(it.title || it.label) + '</title>';
     s += '<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw + '" height="' + h.toFixed(1) + '" fill="' + col(v) + '" rx="2"/>';
-    s += '<text x="' + cx.toFixed(1) + '" y="' + (base + 13) + '" font-size="9" fill="#888" text-anchor="middle">' + escapeHtml(it.label) + '</text>';
-    if (v != null) s += '<text x="' + cx.toFixed(1) + '" y="' + (y - 4).toFixed(1) + '" font-size="9" fill="#1a1a1a" font-weight="700" text-anchor="middle">' + Math.round(v) + '%</text>';
+    if (v != null) s += '<text x="' + cx.toFixed(1) + '" y="' + (y - 5).toFixed(1) + '" font-size="10" fill="#1a1a1a" font-weight="700" text-anchor="middle">' + Math.round(v) + '%</text>';
+    s += '<text x="' + cx.toFixed(1) + '" y="' + (base + 13) + '" font-size="9.5" fill="#888" text-anchor="middle">' + escapeHtml(it.label) + '</text>';
+    if (it.sub) s += '<text x="' + cx.toFixed(1) + '" y="' + (base + 24) + '" font-size="8.5" fill="#aaa" text-anchor="middle">' + escapeHtml(it.sub) + '</text>';
+    s += '</g>';
   });
   return s + '</svg>';
 }
@@ -2368,8 +2398,13 @@ function renderCertifAdvanced(rows) {
       return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.nivel.localeCompare(b.nivel);
     });
     if (!ordered.length) nivChart.innerHTML = '<div class="certif-nivel-empty">Sin datos de detalle para el scope.</div>';
-    else if (CERTIF_NIVEL_METRIC === 'avance') nivChart.innerHTML = svgBars(ordered.map(g => ({ label: g.nivel, value: g.tot > 0 ? (g.comp / g.tot * 100) : null })), false);
-    else nivChart.innerHTML = svgBars(ordered.map(g => ({ label: g.nivel, value: g.students > 0 ? (g.cert / g.students * 100) : null })), true);
+    else {
+      const items = CERTIF_NIVEL_METRIC === 'avance'
+        ? ordered.map(g => ({ label: g.nivel, value: g.tot > 0 ? (g.comp / g.tot * 100) : null, title: nivelNombre(g.nivel) }))
+        : ordered.map(g => ({ label: g.nivel, value: g.students > 0 ? (g.cert / g.students * 100) : null, sub: g.cert.toLocaleString('es-AR') + '/' + g.students.toLocaleString('es-AR'), title: nivelNombre(g.nivel) }));
+      const legend = '<div class="nivlegend">' + ordered.map(g => '<span><b>' + escapeHtml(g.nivel) + '</b> ' + escapeHtml(nivelNombre(g.nivel)) + '</span>').join('') + '</div>';
+      nivChart.innerHTML = svgBars(items, CERTIF_NIVEL_METRIC !== 'avance') + legend;
+    }
   }
 
   const mEl = document.getElementById('certif-mentor-chart');
@@ -2381,15 +2416,17 @@ function renderCertifAdvanced(rows) {
       if (c.certificados != null) { m.cert += c.certificados; m.ins += (c.inscripciones || 0); }
       m.cods.add(codKeyC(c.cod));
     });
-    const arr = Object.values(byMent).map(m => ({ mentor: m.mentor, tasa: m.ins > 0 ? (m.cert / m.ins * 100) : null, n: m.cods.size }))
+    const arr = Object.values(byMent).map(m => ({ mentor: m.mentor, tasa: m.ins > 0 ? (m.cert / m.ins * 100) : null, n: m.cods.size, cert: m.cert }))
       .filter(m => m.tasa != null).sort((a, b) => b.tasa - a.tasa).slice(0, 12);
     if (!arr.length) mEl.innerHTML = '<div class="certif-nivel-empty">Sin datos de mentor para el scope.</div>';
-    else mEl.innerHTML = arr.map(m => {
-      const cl = m.tasa > 50 ? 'var(--verde)' : m.tasa < 30 ? 'var(--rojo)' : 'var(--amarillo)';
-      return '<div class="row2"><span class="lab" title="' + escapeHtml(m.mentor) + '">' + escapeHtml(m.mentor) + '</span>' +
-        '<span class="track"><i style="width:' + Math.max(0, Math.min(100, m.tasa)).toFixed(0) + '%;background:' + cl + '"></i></span>' +
-        '<span class="meta">' + (Math.round(m.tasa * 10) / 10).toString().replace('.', ',') + '% (' + m.n + ')</span></div>';
-    }).join('');
+    else mEl.innerHTML = '<div class="ment">' + arr.map(m => {
+      const stroke = m.tasa > 50 ? '#27a05a' : m.tasa < 30 ? '#c0392b' : '#d4a017';
+      const off = (125.66 * (1 - Math.max(0, Math.min(100, m.tasa)) / 100)).toFixed(1);
+      return '<div class="mrow">' +
+        '<svg width="52" height="52" viewBox="0 0 52 52"><circle cx="26" cy="26" r="20" fill="none" stroke="#eee" stroke-width="7"/><circle cx="26" cy="26" r="20" fill="none" stroke="' + stroke + '" stroke-width="7" stroke-dasharray="125.66" stroke-dashoffset="' + off + '" stroke-linecap="round" transform="rotate(-90 26 26)"/><text x="26" y="30" font-size="13" font-weight="700" text-anchor="middle" font-family="Barlow">' + Math.round(m.tasa) + '%</text></svg>' +
+        '<div><div class="name">' + escapeHtml(m.mentor) + '</div><div class="chips"><span class="chip g">' + m.n + ' colegios</span><span class="chip">' + m.cert.toLocaleString('es-AR') + ' certif.</span></div></div>' +
+        '</div>';
+    }).join('') + '</div>';
   }
 
   const tEl = document.getElementById('certif-top-table');
@@ -2418,15 +2455,21 @@ function renderCertifAdvanced(rows) {
     let best = null;
     Object.values(byNivel).forEach(g => { const rr = g.students > 0 ? (g.cert / g.students * 100) : null; if (rr != null && (!best || rr > best.r)) best = { niv: g.nivel, r: rr }; });
     const crec = certifCrecimiento(CERTIF_ROWSCHART || rows);
+    let tComp = 0, tTot = 0, oComp = 0, oTot = 0;
+    Object.values(byNivel).forEach(g => { tComp += g.comp; tTot += g.tot; oComp += g.obligComp; oTot += g.obligTot; });
+    const pComp = Math.max(0, tComp - oComp), pTot = Math.max(0, tTot - oTot);
+    const pctOf = (a, b) => b > 0 ? Math.round(a / b * 100) : 0;
     const tiles =
       '<div class="tile"><div class="big">' + nfmt(totalCert) + '</div><div class="cap">Certificaciones otorgadas</div></div>' +
-      '<div class="tile"><div class="big">' + nfmt(cursos) + '</div><div class="cap">Cursos aprobados</div></div>' +
-      '<div class="tile"><div class="big">' + nfmt(cods50.size) + '<span class="u"> / ' + nfmt(codsAll.size) + '</span></div><div class="cap">Colegios con +50% cert.</div></div>' +
-      '<div class="tile"><div class="big">' + nfmt(estud) + '</div><div class="cap">Estudiantes alcanzados</div></div>';
+      '<div class="tile"><div class="big">' + nfmt(estud) + '</div><div class="cap">Estudiantes que desarrollaron habilidades digitales</div></div>' +
+      '<div class="tile"><div class="big">' + nfmt(cods50.size) + '<span class="u"> / ' + nfmt(codsAll.size) + '</span></div><div class="cap">Colegios con +50% cert.</div></div>';
+    const cursosBlock = '<div class="cursos"><div class="top"><span class="lbl">Cursos aprobados</span><b>' + nfmt(tComp) + ' <span class="tot">/ ' + nfmt(tTot) + '</span></b></div>' +
+      '<div class="cbar"><div class="l"><span>Obligatorios</span><span class="muted">' + nfmt(oComp) + ' / ' + nfmt(oTot) + ' \u00b7 ' + pctOf(oComp, oTot) + '%</span></div><div class="track"><i style="width:' + pctOf(oComp, oTot) + '%;background:var(--verde)"></i></div></div>' +
+      '<div class="cbar"><div class="l"><span>Optativos</span><span class="muted">' + nfmt(pComp) + ' / ' + nfmt(pTot) + ' \u00b7 ' + pctOf(pComp, pTot) + '%</span></div><div class="track"><i style="width:' + pctOf(pComp, pTot) + '%;background:var(--amarillo)"></i></div></div></div>';
     const dest = [];
     if (best) dest.push('<span class="star">\u2605</span> <b>Nivel destacado:</b> ' + escapeHtml(best.niv) + ' con ' + Math.round(best.r) + '% de certificación');
     if (crec) dest.push('<span class="star">\u2605</span> <b>' + (crec.pct >= 0 ? '+' : '') + (Math.round(crec.pct * 10) / 10).toString().replace('.', ',') + '%</b> de certificados vs. ciclo ' + escapeHtml(crec.prev) + ' (' + crec.n + ' colegios comparables)');
-    lEl.innerHTML = '<div class="logros">' + tiles + '</div>' + (dest.length ? '<div class="destacado">' + dest.join(' &nbsp;\u00b7&nbsp; ') + '</div>' : '');
+    lEl.innerHTML = '<div class="tiles3">' + tiles + '</div>' + cursosBlock + (dest.length ? '<div class="destacado">' + dest.join(' &nbsp;\u00b7&nbsp; ') + '</div>' : '');
   }
 }
 
@@ -2514,7 +2557,7 @@ function buildCertifShell() {
     '</section>' +
     '<div class="certif-cards">' +
       '<div class="certif-card"><h4>Resumen por país</h4><div class="csub">Respeta los filtros activos, incluido Ciclo</div><div id="certif-summary"></div></div>' +
-      '<div class="certif-card"><h4>Certificados por ciclo</h4><div class="csub">Todos los ciclos · ignora el filtro de Ciclo</div><div class="certif-chartwrap"><canvas id="certif-chart"></canvas></div><div class="certif-note" id="certif-chart-note"></div></div>' +
+      '<div class="certif-card"><h4>Impacto del programa</h4><div class="csub">Impacto del scope filtrado</div><div id="certif-logros"></div></div>' +
     '</div>' +
     '<div class="certif-adv">' +
       '<button type="button" class="certif-adv-toggle" id="cadv-toggle"><span class="chev" id="cadv-chev">\u25b8</span> Analítica avanzada</button>' +
@@ -2525,7 +2568,7 @@ function buildCertifShell() {
         '</div>' +
         '<div class="certif-cards">' +
           '<div class="certif-card"><div class="certif-adv-head"><h4>Ranking de colegios por tasa de certificación</h4><div class="certif-seg" id="cadv-top-seg"><button type="button" data-t="top" class="on">Top 5</button><button type="button" data-t="bottom">Fondo 5</button></div></div><div class="csub">Con mentor asignado · respeta los filtros</div><div id="certif-top-table"></div></div>' +
-          '<div class="certif-card"><h4>Logros del programa</h4><div class="csub">Impacto del scope filtrado</div><div id="certif-logros"></div></div>' +
+          '<div class="certif-card"><h4>Certificados por ciclo</h4><div class="csub">Todos los ciclos · ignora el filtro de Ciclo</div><div class="certif-chartwrap"><canvas id="certif-chart"></canvas></div><div class="certif-note" id="certif-chart-note"></div></div>' +
         '</div>' +
       '</div>' +
     '</div>' +
@@ -2545,7 +2588,8 @@ function buildCertifShell() {
   const advT = document.getElementById('cadv-toggle');
   if (advT) advT.addEventListener('click', () => {
     const b = document.getElementById('cadv-body'), ch = document.getElementById('cadv-chev');
-    if (b) { const now = b.classList.toggle('hidden'); if (ch) ch.textContent = now ? '\u25b8' : '\u25be'; }
+    if (b) { const now = b.classList.toggle('hidden'); if (ch) ch.textContent = now ? '\u25b8' : '\u25be';
+      if (!now && typeof CERTIF_ROWSCHART !== 'undefined' && CERTIF_ROWSCHART) drawCertifChart(CERTIF_ROWSCHART); }
   });
   document.querySelectorAll('#cadv-nivel-seg button').forEach(btn => btn.addEventListener('click', () => {
     CERTIF_NIVEL_METRIC = btn.dataset.m;
