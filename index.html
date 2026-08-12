@@ -2207,7 +2207,7 @@ function parseCore(text) {
   const iOp   = certColIdx(H, 'Operation mode', 'Operation Mode', 'Modo de operación', 'Modo de operacion', 'Op mode');
   const iRed  = certColIdx(H, 'Red');
   const iCal  = certColIdx(H, 'Calendario');
-  const iMent = certColIdx(H, 'Mentor');
+  const iMent = certColIdx(H, 'Mentor', 'Mentor asignado', 'Mentora', 'Squad Mentor');
   const out = [];
   for (let r = hi + 1; r < arr.length; r++) {
     const row = arr[r]; if (!Array.isArray(row)) continue;
@@ -2257,12 +2257,14 @@ function buildDetalle(text) {
     n.emails.add(email || ('r' + r));
     if (cc != null) n.comp += cc; if (ct != null) n.tot += ct;
     if (oc != null) n.obligComp += oc; if (ot != null) n.obligTot += ot;
-    if (ot != null && ot > 0 && oc != null && oc >= ot) n.certEmails.add(email || ('r' + r));
+    const senior = /^ST\d/i.test(niv) || niv === 'DATA' || niv === 'DMST' || niv === 'PYTH';
+    const certifica = senior ? (cc != null && cc >= 1) : (ot != null && ot > 0 && oc != null && oc >= ot);
+    if (certifica) n.certEmails.add(email || ('r' + r));
   }
   return map;
 }
 
-const NIVEL_ORDER = ['KOF1', 'KOF2', 'KOF3', 'WEB1', 'WEB2', 'WEB3', 'ST1P', 'ST2P', 'DATA', 'DMST', 'PYTH'];
+const NIVEL_ORDER = ['KOF1', 'KOF2', 'KOF3', 'WEB1', 'WEB2', 'WEB3', 'ST1P', 'ST2P', 'ST3P', 'DATA', 'DMST', 'PYTH'];
 
 function detalleFor(cod, ano) {
   const d = DETALLE_BY_COD[codKeyC(cod)];
@@ -2386,7 +2388,7 @@ function renderCertifAdvanced(rows) {
   if (tEl) {
     const withRate = rows.filter(c => c.tcNum != null);
     withRate.sort((a, b) => CERTIF_TOP_MODE === 'bottom' ? a.tcNum - b.tcNum : b.tcNum - a.tcNum);
-    const top = withRate.slice(0, 10);
+    const top = withRate.slice(0, 5);
     if (!top.length) tEl.innerHTML = '<div class="certif-nivel-empty">Sin colegios con tasa para el scope.</div>';
     else tEl.innerHTML = '<table class="certif-niv"><thead><tr><th>#</th><th>Colegio</th><th class="num">Tasa cert.</th><th>Mentor</th></tr></thead><tbody>' +
       top.map((c, i) => {
@@ -2413,13 +2415,14 @@ async function loadCertif() {
     (RAW ? (RAW.rows || []).concat(RAW.rowsNoActivos || []) : []).forEach(s => { if (s.cod) rawByCod[codKeyC(s.cod)] = s; });
     rows.forEach(c => {
       const k = codKeyC(c.cod);
-      const m = coreByCod[k] || rawByCod[k];
-      c.opMode     = m ? m.opMode     : 'Sin dato';
-      c.red        = m ? m.red        : 'Sin red';
-      c.calendario = m ? m.calendario : 'Sin calendario';
-      c.mentor     = m ? m.mentor     : 'Sin asignar';
+      const mc = coreByCod[k], mr = rawByCod[k], m = mc || mr;
+      const pick = (fld, dflt) => (mc && mc[fld] && mc[fld] !== dflt) ? mc[fld] : (mr && mr[fld] && mr[fld] !== dflt) ? mr[fld] : dflt;
+      c.opMode     = pick('opMode', 'Sin dato');
+      c.red        = pick('red', 'Sin red');
+      c.calendario = pick('calendario', 'Sin calendario');
+      c.mentor     = pick('mentor', 'Sin asignar');
       c.enStatus   = !!m;
-      if (m && (!c.pais || c.pais === 'Sin dato')) c.pais = m.pais;
+      if (m && (!c.pais || c.pais === 'Sin dato')) c.pais = pick('pais', c.pais || 'Sin dato');
     });
     CERTIF_ALL = rows;
     CERTIF_LOADED = true;
@@ -2473,7 +2476,7 @@ function buildCertifShell() {
           '<div class="certif-card"><div class="certif-adv-head"><h4>Comparación por nivel</h4><div class="certif-seg" id="cadv-nivel-seg"><button type="button" data-m="cert" class="on">Tasa cert.</button><button type="button" data-m="avance">Avance</button></div></div><div class="csub">Agrega el Detalle del scope filtrado · sin ramp-ups</div><div id="certif-nivel-chart"></div></div>' +
           '<div class="certif-card"><h4>Mentor · tasa cert. y nº de colegios</h4><div class="csub">Barra = tasa cert. ponderada de sus colegios · (n) = colegios</div><div id="certif-mentor-chart"></div></div>' +
         '</div>' +
-        '<div class="certif-card"><div class="certif-adv-head"><h4>Ranking de colegios por tasa de certificación</h4><div class="certif-seg" id="cadv-top-seg"><button type="button" data-t="top" class="on">Top 10</button><button type="button" data-t="bottom">Fondo 10</button></div></div><div class="csub">Con mentor asignado · respeta los filtros</div><div id="certif-top-table"></div></div>' +
+        '<div class="certif-card"><div class="certif-adv-head"><h4>Ranking de colegios por tasa de certificación</h4><div class="certif-seg" id="cadv-top-seg"><button type="button" data-t="top" class="on">Top 5</button><button type="button" data-t="bottom">Fondo 5</button></div></div><div class="csub">Con mentor asignado · respeta los filtros</div><div id="certif-top-table"></div></div>' +
       '</div>' +
     '</div>' +
     '<div id="certif-body"></div>';
