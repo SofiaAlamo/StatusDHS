@@ -785,11 +785,11 @@
       .cursos .top b { font-family:"Barlow Condensed",sans-serif; font-size:22px; }
       .cursos .top .tot { font-size:13px; color:var(--ink-mute); font-weight:400; }
       .cursos .top .lbl { font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-mute); font-weight:700; }
-      .cbar { margin:6px 0; }
-      .cbar .l { display:flex; justify-content:space-between; font-size:10.5px; margin-bottom:2px; }
-      .cbar .l .muted { color:var(--ink-mute); }
-      .cbar .track { height:9px; background:#eee; border-radius:5px; overflow:hidden; }
-      .cbar .track > i { display:block; height:100%; border-radius:5px; }
+      .curbar { margin:9px 0; }
+      .curbar-l { display:flex; justify-content:space-between; font-size:10.5px; margin-bottom:3px; }
+      .curbar-l .muted { color:var(--ink-mute); }
+      .curbar-trk { height:9px; background:#eee; border-radius:5px; overflow:hidden; }
+      .curbar-trk > i { display:block; height:100%; border-radius:5px; }
       .ment { display:flex; flex-direction:column; gap:10px; }
       .mrow { display:flex; align-items:center; gap:12px; padding:8px 10px; border:1px solid var(--line); border-radius:9px; background:#fff; }
       .mrow .name { font-weight:700; font-size:13px; }
@@ -2464,8 +2464,8 @@ function renderCertifAdvanced(rows) {
       '<div class="tile"><div class="big">' + nfmt(estud) + '</div><div class="cap">Estudiantes que desarrollaron habilidades digitales</div></div>' +
       '<div class="tile"><div class="big">' + nfmt(cods50.size) + '<span class="u"> / ' + nfmt(codsAll.size) + '</span></div><div class="cap">Colegios con +50% cert.</div></div>';
     const cursosBlock = '<div class="cursos"><div class="top"><span class="lbl">Cursos aprobados</span><b>' + nfmt(tComp) + ' <span class="tot">/ ' + nfmt(tTot) + '</span></b></div>' +
-      '<div class="cbar"><div class="l"><span>Obligatorios</span><span class="muted">' + nfmt(oComp) + ' / ' + nfmt(oTot) + ' \u00b7 ' + pctOf(oComp, oTot) + '%</span></div><div class="track"><i style="width:' + pctOf(oComp, oTot) + '%;background:var(--verde)"></i></div></div>' +
-      '<div class="cbar"><div class="l"><span>Optativos</span><span class="muted">' + nfmt(pComp) + ' / ' + nfmt(pTot) + ' \u00b7 ' + pctOf(pComp, pTot) + '%</span></div><div class="track"><i style="width:' + pctOf(pComp, pTot) + '%;background:var(--amarillo)"></i></div></div></div>';
+      '<div class="curbar"><div class="curbar-l"><span>Obligatorios</span><span class="muted">' + nfmt(oComp) + ' / ' + nfmt(oTot) + ' \u00b7 ' + pctOf(oComp, oTot) + '%</span></div><div class="curbar-trk"><i style="width:' + pctOf(oComp, oTot) + '%;background:var(--verde)"></i></div></div>' +
+      '<div class="curbar"><div class="curbar-l"><span>Optativos</span><span class="muted">' + nfmt(pComp) + ' / ' + nfmt(pTot) + ' \u00b7 ' + pctOf(pComp, pTot) + '%</span></div><div class="curbar-trk"><i style="width:' + pctOf(pComp, pTot) + '%;background:var(--amarillo)"></i></div></div></div>';
     const dest = [];
     if (best) dest.push('<span class="star">\u2605</span> <b>Nivel destacado:</b> ' + escapeHtml(best.niv) + ' con ' + Math.round(best.r) + '% de certificación');
     if (crec) dest.push('<span class="star">\u2605</span> <b>' + (crec.pct >= 0 ? '+' : '') + (Math.round(crec.pct * 10) / 10).toString().replace('.', ',') + '%</b> de certificados vs. ciclo ' + escapeHtml(crec.prev) + ' (' + crec.n + ' colegios comparables)');
@@ -2563,7 +2563,7 @@ function buildCertifShell() {
       '<button type="button" class="certif-adv-toggle" id="cadv-toggle"><span class="chev" id="cadv-chev">\u25b8</span> Analítica avanzada</button>' +
       '<div class="certif-adv-body hidden" id="cadv-body">' +
         '<div class="certif-cards">' +
-          '<div class="certif-card"><div class="certif-adv-head"><h4>Comparación por nivel</h4><div class="certif-seg" id="cadv-nivel-seg"><button type="button" data-m="cert" class="on">Tasa cert.</button><button type="button" data-m="avance">Avance</button></div></div><div class="csub">Agrega el Detalle del scope filtrado · sin ramp-ups</div><div id="certif-nivel-chart"></div></div>' +
+          '<div class="certif-card"><div class="certif-adv-head"><h4>Comparación por nivel</h4><div class="certif-seg" id="cadv-nivel-seg"><button type="button" data-m="cert" class="on">Tasa cert.</button><button type="button" data-m="avance">Avance</button></div></div><div class="csub">Bajo cada barra: alumnos que <b>certificaron / cursaron</b> · sin ramp-ups</div><div id="certif-nivel-chart"></div></div>' +
           '<div class="certif-card"><h4>Mentor · tasa cert. y nº de colegios</h4><div class="csub">Barra = tasa cert. ponderada de sus colegios · (n) = colegios</div><div id="certif-mentor-chart"></div></div>' +
         '</div>' +
         '<div class="certif-cards">' +
