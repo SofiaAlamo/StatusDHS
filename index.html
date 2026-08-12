@@ -772,6 +772,13 @@
       .row2 .track { flex:1; height:14px; background:#f0f0f0; border-radius:4px; position:relative; overflow:hidden; }
       .row2 .track > i { position:absolute; left:0; top:0; bottom:0; border-radius:4px; }
       .row2 .meta { width:74px; text-align:right; color:var(--ink-mute); font-size:10px; }
+      .logros { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+      .tile { background:linear-gradient(160deg,#fffdf5,#fff); border:1px solid #f0e4bd; border-radius:9px; padding:11px 12px; }
+      .tile .big { font-family:"Barlow Condensed",sans-serif; font-weight:700; font-size:26px; line-height:1; color:var(--ink); }
+      .tile .big .u { font-size:15px; color:var(--amarillo); }
+      .tile .cap { font-size:9.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-mute); font-weight:700; margin-top:3px; }
+      .destacado { margin-top:10px; background:#fbfbf7; border:1px dashed #e2d9b8; border-radius:8px; padding:9px 11px; font-size:11.5px; line-height:1.5; }
+      .star { color:var(--amarillo); font-weight:700; }
     </style>
     <div id="certif-content"><div class="onb-loading">Cargando certificaciones otorgadas…</div></div>
   </section>
@@ -2306,6 +2313,7 @@ function certifNivelPanel(cod, ano) {
 let CERTIF_NIVEL_METRIC = 'cert';
 let CERTIF_TOP_MODE = 'top';
 let CERTIF_LAST_ROWS = null;
+let CERTIF_ROWSCHART = null;
 
 function aggregateDetalle(rows) {
   const seen = new Set();
@@ -2398,8 +2406,48 @@ function renderCertifAdvanced(rows) {
           '<td style="color:var(--ink-mute)">' + escapeHtml(c.mentor || 'Sin asignar') + '</td></tr>';
       }).join('') + '</tbody></table>';
   }
+
+  const lEl = document.getElementById('certif-logros');
+  if (lEl) {
+    const nfmt = v => v.toLocaleString('es-AR');
+    const totalCert = rows.reduce((s, c) => s + (c.certificados || 0), 0);
+    let cursos = 0; Object.values(byNivel).forEach(g => { cursos += g.comp; });
+    const codsAll = new Set(rows.map(c => codKeyC(c.cod)));
+    const cods50 = new Set(rows.filter(c => c.tcNum != null && c.tcNum > 50).map(c => codKeyC(c.cod)));
+    const estud = rows.reduce((s, c) => s + (c.estudiantes || 0), 0);
+    let best = null;
+    Object.values(byNivel).forEach(g => { const rr = g.students > 0 ? (g.cert / g.students * 100) : null; if (rr != null && (!best || rr > best.r)) best = { niv: g.nivel, r: rr }; });
+    const crec = certifCrecimiento(CERTIF_ROWSCHART || rows);
+    const tiles =
+      '<div class="tile"><div class="big">' + nfmt(totalCert) + '</div><div class="cap">Certificaciones otorgadas</div></div>' +
+      '<div class="tile"><div class="big">' + nfmt(cursos) + '</div><div class="cap">Cursos aprobados</div></div>' +
+      '<div class="tile"><div class="big">' + nfmt(cods50.size) + '<span class="u"> / ' + nfmt(codsAll.size) + '</span></div><div class="cap">Colegios con +50% cert.</div></div>' +
+      '<div class="tile"><div class="big">' + nfmt(estud) + '</div><div class="cap">Estudiantes alcanzados</div></div>';
+    const dest = [];
+    if (best) dest.push('<span class="star">\u2605</span> <b>Nivel destacado:</b> ' + escapeHtml(best.niv) + ' con ' + Math.round(best.r) + '% de certificación');
+    if (crec) dest.push('<span class="star">\u2605</span> <b>' + (crec.pct >= 0 ? '+' : '') + (Math.round(crec.pct * 10) / 10).toString().replace('.', ',') + '%</b> de certificados vs. ciclo ' + escapeHtml(crec.prev) + ' (' + crec.n + ' colegios comparables)');
+    lEl.innerHTML = '<div class="logros">' + tiles + '</div>' + (dest.length ? '<div class="destacado">' + dest.join(' &nbsp;\u00b7&nbsp; ') + '</div>' : '');
+  }
 }
 
+function certifCrecimiento(rowsChart) {
+  const byCicloCod = {};
+  rowsChart.forEach(c => {
+    if (c.certificados == null) return;
+    const cy = String(c.ano || ''); if (!cy) return;
+    const bag = byCicloCod[cy] || (byCicloCod[cy] = {});
+    const k = codKeyC(c.cod);
+    bag[k] = (bag[k] || 0) + c.certificados;
+  });
+  const ciclos = Object.keys(byCicloCod).sort((a, b) => String(a).replace(/[^0-9]/g, '').localeCompare(String(b).replace(/[^0-9]/g, '')));
+  if (ciclos.length < 2) return null;
+  const cur = ciclos[ciclos.length - 1], prev = ciclos[ciclos.length - 2];
+  const curM = byCicloCod[cur], prevM = byCicloCod[prev];
+  let curSum = 0, prevSum = 0, n = 0;
+  Object.keys(curM).forEach(k => { if (k in prevM) { curSum += curM[k]; prevSum += prevM[k]; n++; } });
+  if (n === 0 || prevSum === 0) return null;
+  return { pct: (curSum - prevSum) / prevSum * 100, cur, prev, n };
+}
 async function loadCertif() {
   const cont = document.getElementById('certif-content');
   try {
@@ -2462,7 +2510,6 @@ function buildCertifShell() {
         '<div class="stat"><div class="num" id="cstat-est">—</div><div class="lbl">Estudiantes</div></div>' +
         '<div class="stat"><div class="num" id="cstat-cert">—</div><div class="lbl">Certificados</div></div>' +
         '<div class="stat"><div class="num" id="cstat-tasa">—</div><div class="lbl">Tasa cert. ponderada</div><div class="stat-note">Σ certif. / Σ inscrip.</div></div>' +
-        '<div class="stat"><div class="num" id="cstat-avance">—</div><div class="lbl">Avance prom. contenidos</div><div class="stat-note">Σ compl. / Σ totales · sin ramp-ups</div></div>' +
       '</div>' +
     '</section>' +
     '<div class="certif-cards">' +
@@ -2476,7 +2523,10 @@ function buildCertifShell() {
           '<div class="certif-card"><div class="certif-adv-head"><h4>Comparación por nivel</h4><div class="certif-seg" id="cadv-nivel-seg"><button type="button" data-m="cert" class="on">Tasa cert.</button><button type="button" data-m="avance">Avance</button></div></div><div class="csub">Agrega el Detalle del scope filtrado · sin ramp-ups</div><div id="certif-nivel-chart"></div></div>' +
           '<div class="certif-card"><h4>Mentor · tasa cert. y nº de colegios</h4><div class="csub">Barra = tasa cert. ponderada de sus colegios · (n) = colegios</div><div id="certif-mentor-chart"></div></div>' +
         '</div>' +
-        '<div class="certif-card"><div class="certif-adv-head"><h4>Ranking de colegios por tasa de certificación</h4><div class="certif-seg" id="cadv-top-seg"><button type="button" data-t="top" class="on">Top 5</button><button type="button" data-t="bottom">Fondo 5</button></div></div><div class="csub">Con mentor asignado · respeta los filtros</div><div id="certif-top-table"></div></div>' +
+        '<div class="certif-cards">' +
+          '<div class="certif-card"><div class="certif-adv-head"><h4>Ranking de colegios por tasa de certificación</h4><div class="certif-seg" id="cadv-top-seg"><button type="button" data-t="top" class="on">Top 5</button><button type="button" data-t="bottom">Fondo 5</button></div></div><div class="csub">Con mentor asignado · respeta los filtros</div><div id="certif-top-table"></div></div>' +
+          '<div class="certif-card"><h4>Logros del programa</h4><div class="csub">Impacto del scope filtrado</div><div id="certif-logros"></div></div>' +
+        '</div>' +
       '</div>' +
     '</div>' +
     '<div id="certif-body"></div>';
@@ -2568,6 +2618,7 @@ function renderCertifBody() {
   });
   renderCertifSummary(rows);
   drawCertifChart(rowsChart);
+  CERTIF_ROWSCHART = rowsChart;
   renderCertifAdvanced(rows);
   const hasAno = CERTIF_ALL.some(c => c.ano);
   const arrow = k => '<span class="oarrow">' + (CERTIF_SORT.key === k ? (CERTIF_SORT.dir === 'asc' ? '▲' : '▼') : '↕') + '</span>';
