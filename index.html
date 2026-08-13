@@ -2288,6 +2288,7 @@ function mergeClases(text) {
   let hi = arr.findIndex(r => Array.isArray(r) && r.some(c => { const k = normKey(c); return k === 'track_pld' || k === 'organization_name' || k === 'email'; }));
   if (hi < 0) hi = 0;
   const H = arr[hi];
+  const iCodDir = certColIdx(H, 'COD', 'Cod', 'Codigo', 'Código');
   const iOrg = certColIdx(H, 'organization_name', 'organization name', 'organizacion', 'organización', 'escuela', 'colegio');
   const iTrack = certColIdx(H, 'track_pld', 'track pld', 'track', 'ruta');
   const iCt = certColIdx(H, 'clases_totales', 'clases totales');
@@ -2296,7 +2297,9 @@ function mergeClases(text) {
   for (let r = hi + 1; r < arr.length; r++) {
     const row = arr[r]; if (!Array.isArray(row)) continue;
     if (iFecha >= 0 && String(row[iFecha] || '').trim().slice(0, 4) === '2026') continue;
-    const cod = NAME_TO_COD[nombreKey(iOrg >= 0 ? row[iOrg] : '')]; if (!cod) continue;
+    let cod = codKeyC(iCodDir >= 0 ? row[iCodDir] : '');
+    if (!cod) cod = NAME_TO_COD[nombreKey(iOrg >= 0 ? row[iOrg] : '')];
+    if (!cod) continue;
     const niv = nivOfTrack(iTrack >= 0 ? row[iTrack] : ''); if (!niv) continue;
     const school = DETALLE_BY_COD[cod]; if (!school) continue;
     let n = null;
