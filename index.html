@@ -2233,7 +2233,9 @@ function parseCore(text) {
   const iOp   = certColIdx(H, 'Operation mode', 'Operation Mode', 'Modo de operación', 'Modo de operacion', 'Op mode');
   const iRed  = certColIdx(H, 'Red');
   const iCal  = certColIdx(H, 'Calendario');
-  const iMent = certColIdx(H, 'Mentor', 'Mentor asignado', 'Mentora', 'Squad Mentor');
+  const iMent25 = certColIdx(H, 'Mentor 2025', 'Mentor2025');
+  const iMent26 = certColIdx(H, 'Mentor 2026', 'Mentor2026');
+  const iMent = certColIdx(H, 'Mentor', 'Mentor asignado', 'Mentora');
   const out = [];
   for (let r = hi + 1; r < arr.length; r++) {
     const row = arr[r]; if (!Array.isArray(row)) continue;
@@ -2245,7 +2247,7 @@ function parseCore(text) {
       opMode: clean(iOp >= 0 ? row[iOp] : '') || 'Sin dato',
       red: clean(iRed >= 0 ? row[iRed] : '') || 'Sin red',
       calendario: clean(iCal >= 0 ? row[iCal] : '') || 'Sin calendario',
-      mentor: clean(iMent >= 0 ? row[iMent] : '') || 'Sin asignar'
+      mentor: (clean(iMent26 >= 0 ? row[iMent26] : '') || clean(iMent25 >= 0 ? row[iMent25] : '') || clean(iMent >= 0 ? row[iMent] : '')) || 'Sin asignar'
     });
   }
   return out;
