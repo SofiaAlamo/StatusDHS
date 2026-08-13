@@ -2389,9 +2389,9 @@ function parseComentarios(text) {
   const iCod = certColIdx(H, 'COD', 'Cod', 'Escuela', 'Colegio');
   let iCom = certColIdx(H, 'Comentario', 'Comentarios', 'Comentario cierre', 'Comentario del mentor', 'Observaciones');
   if (iCom < 0) iCom = H.findIndex(h => /coment|observ/i.test(String(h)));
-  const FECHA_RELABEL = { 'fecha envio del ultimo informe': 'Fecha de envío de diplomas y analíticos' };
+  const relabelFecha = h => /informe|diploma|anal[ií]tico/i.test(String(h)) ? 'Fecha de envío de diplomas/informes analíticos' : clean(h);
   const fechaCols = [];
-  H.forEach((h, idx) => { if (idx !== iCod && idx !== iCom && /fecha/i.test(String(h))) fechaCols.push({ idx, label: FECHA_RELABEL[normKey(h)] || clean(h) }); });
+  H.forEach((h, idx) => { if (idx !== iCod && idx !== iCom && /fecha/i.test(String(h))) fechaCols.push({ idx, label: relabelFecha(h) }); });
   const map = {};
   for (let r = hi + 1; r < arr.length; r++) {
     const row = arr[r]; if (!Array.isArray(row)) continue;
