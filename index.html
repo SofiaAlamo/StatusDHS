@@ -2168,11 +2168,13 @@ const CSV_URL_COMENTARIOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSP
 let COMENTARIOS_BY_COD = {};
 const CSV_URL_CLASES = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQup14CCxdMLeQxKlwJCf2R_zqrD28B8Pq1D3VTAPdhZZK8K2XdXwyaB01KMVrfQGnFJ_8oCyOL3zU/pub?output=csv';
 let DETALLE_EMAIL_IDX = {};
+let NAME_TO_COD = {};
 const CERTIF_EXPANDED = new Set();
 let CERTIF_ALL = [];
 let CERTIF_LOADED = false;
 let CERTIF_SORT = { key: 'certif', dir: 'desc' };
 const codKeyC = c => String(c || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+const nombreKey = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 
 function certColIdx(H, ...names) {
   const HN = H.map(h => normKey(h));
@@ -2252,6 +2254,7 @@ function parseCore(text) {
   const iMent25 = certColIdx(H, 'Mentor 2025', 'Mentor2025');
   const iMent26 = certColIdx(H, 'Mentor 2026', 'Mentor2026');
   const iMent = certColIdx(H, 'Mentor', 'Mentor asignado', 'Mentora');
+  const iNom = certColIdx(H, 'Nombre colegio', 'Nombre normalizado colegio', 'Organización en PG', 'Nombre en PG', 'Escuela', 'Colegio');
   const out = [];
   for (let r = hi + 1; r < arr.length; r++) {
     const row = arr[r]; if (!Array.isArray(row)) continue;
@@ -2259,6 +2262,7 @@ function parseCore(text) {
     if (!cod) continue;
     out.push({
       cod,
+      nombre: clean(iNom >= 0 ? row[iNom] : ''),
       pais: clean(iPais >= 0 ? row[iPais] : '') || 'Sin dato',
       opMode: clean(iOp >= 0 ? row[iOp] : '') || 'Sin dato',
       red: clean(iRed >= 0 ? row[iRed] : '') || 'Sin red',
@@ -2281,30 +2285,29 @@ function nivOfTrack(t) {
 
 function mergeClases(text) {
   const arr = (Papa.parse(text, { skipEmptyLines: true }).data) || [];
-  let hi = arr.findIndex(r => Array.isArray(r) && r.some(c => normKey(c) === 'email'));
+  let hi = arr.findIndex(r => Array.isArray(r) && r.some(c => { const k = normKey(c); return k === 'track_pld' || k === 'organization_name' || k === 'email'; }));
   if (hi < 0) hi = 0;
   const H = arr[hi];
-  const iEmail = certColIdx(H, 'email', 'correo', 'e-mail', 'mail');
+  const iOrg = certColIdx(H, 'organization_name', 'organization name', 'organizacion', 'organización', 'escuela', 'colegio');
   const iTrack = certColIdx(H, 'track_pld', 'track pld', 'track', 'ruta');
   const iCt = certColIdx(H, 'clases_totales', 'clases totales');
   const iCf = certColIdx(H, 'clases_finalizadas', 'clases finalizadas');
   const iFecha = certColIdx(H, 'fecha_de_inscripcion', 'fecha de inscripcion', 'fecha inscripcion');
   for (let r = hi + 1; r < arr.length; r++) {
     const row = arr[r]; if (!Array.isArray(row)) continue;
-    const email = clean(iEmail >= 0 ? row[iEmail] : '').toLowerCase(); if (!email) continue;
     if (iFecha >= 0 && String(row[iFecha] || '').trim().slice(0, 4) === '2026') continue;
+    const cod = NAME_TO_COD[nombreKey(iOrg >= 0 ? row[iOrg] : '')]; if (!cod) continue;
     const niv = nivOfTrack(iTrack >= 0 ? row[iTrack] : ''); if (!niv) continue;
-    const b = DETALLE_EMAIL_IDX[email + '|' + niv]; if (!b) continue;
-    const school = DETALLE_BY_COD[b.cod]; if (!school) continue;
-    const cy = school.ciclos[b.ciclo]; if (!cy) continue;
-    const n = cy.niveles[niv]; if (!n) continue;
+    const school = DETALLE_BY_COD[cod]; if (!school) continue;
+    let n = null;
+    for (const ck of Object.keys(school.ciclos)) { if (school.ciclos[ck].niveles[niv]) { n = school.ciclos[ck].niveles[niv]; break; } }
+    if (!n) continue;
     const ct = parseInt(String(iCt >= 0 ? row[iCt] : '').replace(/[^0-9]/g, ''), 10);
     const cf = parseInt(String(iCf >= 0 ? row[iCf] : '').replace(/[^0-9]/g, ''), 10);
     if (!isNaN(ct)) n.clasesTot += ct;
     if (!isNaN(cf)) n.clasesComp += cf;
   }
 }
-
 function buildDetalle(text) {
   const arr = (Papa.parse(text, { skipEmptyLines: true }).data) || [];
   let hi = arr.findIndex(r => Array.isArray(r) && r.some(c => { const k = normKey(c); return k === 'cod' || k === 'escuela'; }));
@@ -2600,13 +2603,19 @@ async function loadCertif() {
     const [certifRes, coreRes, detRes, comRes, clasesRes] = await Promise.all([fetch(CSV_URL_CERTIF), fetch(CSV_URL_CORE), fetch(CSV_URL_DETALLE), fetch(CSV_URL_COMENTARIOS), fetch(CSV_URL_CLASES)]);
     if (!certifRes.ok) throw new Error('HTTP ' + certifRes.status);
     const rows = parseCertif(await certifRes.text());
-    // Detalle de avance por alumno → agregado por COD × nivel (para el desplegable)
-    DETALLE_BY_COD = detRes.ok ? buildDetalle(await detRes.text()) : {};
-    if (clasesRes.ok) try { mergeClases(await clasesRes.text()); } catch (e) { console.error('Clases:', e); }
-    COMENTARIOS_BY_COD = comRes.ok ? parseComentarios(await comRes.text()) : {};
-    // Cruce contra Core 2026 (fuente completa de opmode/red/país/calendario/mentor); RAW como respaldo
+    // Core 2026 primero (para opmode/red/mentor y para resolver COD por nombre)
+    const coreArr = coreRes.ok ? parseCore(await coreRes.text()) : [];
     const coreByCod = {};
-    if (coreRes.ok) parseCore(await coreRes.text()).forEach(s => { if (s.cod) coreByCod[codKeyC(s.cod)] = s; });
+    coreArr.forEach(s => { if (s.cod) coreByCod[codKeyC(s.cod)] = s; });
+    // Índice nombre de colegio → COD (de Certificaciones y de Core), para cruzar la hoja de clases
+    NAME_TO_COD = {};
+    rows.forEach(c => { const nk = nombreKey(c.escuela); if (nk && c.cod) NAME_TO_COD[nk] = codKeyC(c.cod); });
+    coreArr.forEach(s => { const nk = nombreKey(s.nombre); if (nk && s.cod) NAME_TO_COD[nk] = codKeyC(s.cod); });
+    // Detalle por cursos + merge de avance por clases (cruza organization_name → COD)
+    DETALLE_BY_COD = detRes.ok ? buildDetalle(await detRes.text()) : {};
+    if (clasesRes.ok) { try { mergeClases(await clasesRes.text()); } catch (e) { console.error('Clases:', e); } }
+    else console.warn('Clases: no se pudo cargar el CSV (HTTP', clasesRes.status, ')');
+    COMENTARIOS_BY_COD = comRes.ok ? parseComentarios(await comRes.text()) : {};
     const rawByCod = {};
     (RAW ? (RAW.rows || []).concat(RAW.rowsNoActivos || []) : []).forEach(s => { if (s.cod) rawByCod[codKeyC(s.cod)] = s; });
     rows.forEach(c => {
