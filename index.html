@@ -2277,12 +2277,13 @@ function nivOfTrack(t) {
   const s = String(t || '').toUpperCase();
   let m = s.match(/SENIOR\s+TRACKS?\s*(\d)/);
   if (m) return 'ST' + m[1] + 'P';
-  m = s.match(/\b(KOF[0-9]|WEB[0-9]|ST[0-9]P|DATA|DMST|PYTH)\b/);
+  if (/\bDMT\b|DMST|MINDSET/.test(s)) return 'DMST';
+  if (/\bDATA\b/.test(s)) return 'DATA';
+  if (/PYTHON|\bPYTH\b/.test(s)) return 'PYTH';
+  m = s.match(/\b(KOF[0-9]|WEB[0-9]|ST[0-9]P)\b/);
   if (m) return m[1];
-  if (/MINDSET/.test(s)) return 'DMST';
   return '';
 }
-
 function mergeClases(text) {
   const arr = (Papa.parse(text, { skipEmptyLines: true }).data) || [];
   let hi = arr.findIndex(r => Array.isArray(r) && r.some(c => { const k = normKey(c); return k === 'track_pld' || k === 'organization_name' || k === 'email'; }));
