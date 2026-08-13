@@ -2169,6 +2169,7 @@ let COMENTARIOS_BY_COD = {};
 const CSV_URL_CLASES = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQup14CCxdMLeQxKlwJCf2R_zqrD28B8Pq1D3VTAPdhZZK8K2XdXwyaB01KMVrfQGnFJ_8oCyOL3zU/pub?output=csv';
 let DETALLE_EMAIL_IDX = {};
 let NAME_TO_COD = {};
+let CLASES_BY_COD = {};
 const CERTIF_EXPANDED = new Set();
 let CERTIF_ALL = [];
 let CERTIF_LOADED = false;
@@ -2284,9 +2285,9 @@ function nivOfTrack(t) {
   if (m) return m[1];
   return '';
 }
-function mergeClases(text) {
+function buildClases(text) {
   const arr = (Papa.parse(text, { skipEmptyLines: true }).data) || [];
-  let hi = arr.findIndex(r => Array.isArray(r) && r.some(c => { const k = normKey(c); return k === 'track_pld' || k === 'organization_name' || k === 'email'; }));
+  let hi = arr.findIndex(r => Array.isArray(r) && r.some(c => { const k = normKey(c); return k === 'cod' || k === 'organization_name' || k === 'email'; }));
   if (hi < 0) hi = 0;
   const H = arr[hi];
   const iCodDir = certColIdx(H, 'COD', 'Cod', 'Codigo', 'Código');
@@ -2295,22 +2296,22 @@ function mergeClases(text) {
   const iCt = certColIdx(H, 'clases_totales', 'clases totales');
   const iCf = certColIdx(H, 'clases_finalizadas', 'clases finalizadas');
   const iFecha = certColIdx(H, 'fecha_de_inscripcion', 'fecha de inscripcion', 'fecha inscripcion');
+  const map = {};
   for (let r = hi + 1; r < arr.length; r++) {
     const row = arr[r]; if (!Array.isArray(row)) continue;
-    if (iFecha >= 0 && String(row[iFecha] || '').trim().slice(0, 4) === '2026') continue;
+    if (String(iFecha >= 0 ? row[iFecha] : '').trim().slice(0, 4) === '2026') continue;
     let cod = codKeyC(iCodDir >= 0 ? row[iCodDir] : '');
     if (!cod) cod = NAME_TO_COD[nombreKey(iOrg >= 0 ? row[iOrg] : '')];
     if (!cod) continue;
     const niv = nivOfTrack(iTrack >= 0 ? row[iTrack] : ''); if (!niv) continue;
-    const school = DETALLE_BY_COD[cod]; if (!school) continue;
-    let n = null;
-    for (const ck of Object.keys(school.ciclos)) { if (school.ciclos[ck].niveles[niv]) { n = school.ciclos[ck].niveles[niv]; break; } }
-    if (!n) continue;
     const ct = parseInt(String(iCt >= 0 ? row[iCt] : '').replace(/[^0-9]/g, ''), 10);
     const cf = parseInt(String(iCf >= 0 ? row[iCf] : '').replace(/[^0-9]/g, ''), 10);
-    if (!isNaN(ct)) n.clasesTot += ct;
-    if (!isNaN(cf)) n.clasesComp += cf;
+    const sch = map[cod] || (map[cod] = {});
+    const b = sch[niv] || (sch[niv] = { comp: 0, tot: 0 });
+    if (!isNaN(ct)) b.tot += ct;
+    if (!isNaN(cf)) b.comp += cf;
   }
+  return map;
 }
 function buildDetalle(text) {
   const arr = (Papa.parse(text, { skipEmptyLines: true }).data) || [];
@@ -2415,14 +2416,16 @@ function certifNivelPanel(cod, ano) {
       return '<div class="barwrap"><span class="cbar"><i style="width:' + w.toFixed(1) + '%"></i></span><span class="cpct">' + (Math.round(v * 10) / 10).toString().replace('.', ',') + '%</span></div>';
     };
     const certTag = v => { if (v == null) return '<span class="sin-plat">\u2014</span>'; const cl = v > 50 ? 'cert-v' : v < 30 ? 'cert-r' : 'cert-a'; return '<span class="cert-tag ' + cl + '">' + (Math.round(v * 10) / 10).toString().replace('.', ',') + '%</span>'; };
-    const body = nivs.map(n =>
-      '<tr><td><span class="niv-badge">' + escapeHtml(n.nivel) + '</span></td>' +
+    const clSch = CLASES_BY_COD[codKeyC(cod)] || {};
+    const body = nivs.map(n => {
+      const cl = clSch[n.nivel];
+      return '<tr><td><span class="niv-badge">' + escapeHtml(n.nivel) + '</span></td>' +
       '<td class="num">' + n.emails.size.toLocaleString('es-AR') + '</td>' +
       '<td class="num">' + certTag(n.emails.size ? (n.certEmails.size / n.emails.size * 100) : null) + '</td>' +
       '<td class="num">' + bar(pct(n.obligComp, n.obligTot)) + '</td>' +
       '<td class="num">' + bar(pct(n.comp - n.obligComp, n.tot - n.obligTot)) + '</td>' +
-      '<td class="num">' + bar(pct(n.clasesComp, n.clasesTot)) + '</td></tr>'
-    ).join('');
+      '<td class="num">' + bar(cl ? pct(cl.comp, cl.tot) : null) + '</td></tr>';
+    }).join('');
     nivHtml = '<div class="certif-nivel-title">Avance por nivel \u00b7 ciclo ' + escapeHtml(cy.ciclo || DETALLE_CICLO) + '</div>' +
       '<table class="certif-niv"><thead><tr><th>Nivel</th><th class="num">Estudiantes</th><th class="num">Tasa cert.</th><th class="num">Avance cursos oblig.</th><th class="num">Avance cursos no oblig.</th><th class="num">Avance clases (total)</th></tr></thead><tbody>' + body + '</tbody></table>';
   }
@@ -2445,6 +2448,7 @@ let CERTIF_ROWSCHART = null;
 
 function aggregateDetalle(rows) {
   const seen = new Set();
+  const seenCl = new Set();
   const byNivel = {};
   rows.forEach(c => {
     const cy = detalleFor(c.cod, c.ano);
@@ -2455,7 +2459,8 @@ function aggregateDetalle(rows) {
     Object.values(cy.niveles).forEach(n => {
       const g = byNivel[n.nivel] || (byNivel[n.nivel] = { nivel: n.nivel, comp: 0, tot: 0, obligComp: 0, obligTot: 0, clasesComp: 0, clasesTot: 0, students: 0, cert: 0 });
       g.comp += n.comp; g.tot += n.tot; g.obligComp += n.obligComp; g.obligTot += n.obligTot;
-      g.clasesComp += n.clasesComp || 0; g.clasesTot += n.clasesTot || 0;
+      const clK = codKeyC(c.cod) + '|' + n.nivel;
+      if (!seenCl.has(clK)) { seenCl.add(clK); const cl = (CLASES_BY_COD[codKeyC(c.cod)] || {})[n.nivel]; if (cl) { g.clasesComp += cl.comp; g.clasesTot += cl.tot; } }
       g.students += n.emails.size; g.cert += n.certEmails.size;
     });
   });
@@ -2617,8 +2622,8 @@ async function loadCertif() {
     coreArr.forEach(s => { const nk = nombreKey(s.nombre); if (nk && s.cod) NAME_TO_COD[nk] = codKeyC(s.cod); });
     // Detalle por cursos + merge de avance por clases (cruza organization_name → COD)
     DETALLE_BY_COD = detRes.ok ? buildDetalle(await detRes.text()) : {};
-    if (clasesRes.ok) { try { mergeClases(await clasesRes.text()); } catch (e) { console.error('Clases:', e); } }
-    else console.warn('Clases: no se pudo cargar el CSV (HTTP', clasesRes.status, ')');
+    try { CLASES_BY_COD = clasesRes.ok ? buildClases(await clasesRes.text()) : {}; } catch (e) { console.error('Clases:', e); CLASES_BY_COD = {}; }
+    if (!clasesRes.ok) console.warn('Clases: no se pudo cargar el CSV (HTTP', clasesRes.status, ')');
     COMENTARIOS_BY_COD = comRes.ok ? parseComentarios(await comRes.text()) : {};
     const rawByCod = {};
     (RAW ? (RAW.rows || []).concat(RAW.rowsNoActivos || []) : []).forEach(s => { if (s.cod) rawByCod[codKeyC(s.cod)] = s; });
