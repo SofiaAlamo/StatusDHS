@@ -798,6 +798,18 @@
       .chip.g { background:rgba(39,160,90,.12); color:var(--verde); }
       .nivlegend { display:flex; flex-wrap:wrap; gap:4px 12px; font-size:10px; color:var(--ink-mute); margin-top:8px; }
       .nivlegend b { color:var(--ink); }
+      .ruta-tag { font-weight:700; }
+      .ruta-combinada { margin-top:8px; font-size:12px; color:var(--ink); background:#fbfbf7; border:1px solid #eee; border-radius:6px; padding:6px 10px; }
+      .ruta-combinada b { font-size:13px; }
+      .certif-panel-grid { display:grid; grid-template-columns:1.5fr 1fr; gap:16px; align-items:start; }
+      @media (max-width:760px) { .certif-panel-grid { grid-template-columns:1fr; } }
+      .certif-cierre { background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px; }
+      .cierre-coment { font-size:12px; line-height:1.5; color:var(--ink); background:#fbfbf7; border-left:3px solid #FFC72C; padding:8px 10px; border-radius:4px; margin-bottom:10px; }
+      .cierre-fechas { display:flex; flex-direction:column; gap:6px; }
+      .cierre-fecha { display:flex; justify-content:space-between; gap:10px; font-size:11.5px; border-bottom:1px solid #f0f0f0; padding-bottom:4px; }
+      .cierre-fecha:last-child { border-bottom:none; }
+      .cf-lbl { color:var(--ink-mute); font-weight:600; }
+      .cf-val { font-weight:700; font-variant-numeric:tabular-nums; }
     </style>
     <div id="certif-content"><div class="onb-loading">Cargando certificaciones otorgadas…</div></div>
   </section>
@@ -2152,6 +2164,8 @@ const CSV_URL_CERTIF = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSPFRKVv
 const CSV_URL_DETALLE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSPFRKVvwUioC_7rKCblIMz7Cu7qvQpQI8LJM982dThQkT_hLqaJgwU2Js8OhEZag4aJ3_5GCfvzSwd/pub?gid=1460959156&single=true&output=csv';
 const DETALLE_CICLO = '2024/2025';
 let DETALLE_BY_COD = {};
+const CSV_URL_COMENTARIOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSPFRKVvwUioC_7rKCblIMz7Cu7qvQpQI8LJM982dThQkT_hLqaJgwU2Js8OhEZag4aJ3_5GCfvzSwd/pub?gid=1436587876&single=true&output=csv';
+let COMENTARIOS_BY_COD = {};
 const CERTIF_EXPANDED = new Set();
 let CERTIF_ALL = [];
 let CERTIF_LOADED = false;
@@ -2306,31 +2320,76 @@ function detalleFor(cod, ano) {
   return hit ? d.ciclos[hit] : null;
 }
 
-function certifNivelPanel(cod, ano) {
+function avanceRuta(cod, ano) {
   const cy = detalleFor(cod, ano);
-  if (!cy) return '<div class="certif-nivel-empty">Sin detalle de avance para este ciclo.</div>';
-  const nivs = Object.values(cy.niveles).sort((a, b) => {
-    const ia = NIVEL_ORDER.indexOf(a.nivel), ib = NIVEL_ORDER.indexOf(b.nivel);
-    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.nivel.localeCompare(b.nivel);
-  });
-  const pct = (n, t) => t > 0 ? (n / t * 100) : null;
-  const bar = v => {
-    if (v == null) return '<span class="sin-plat">—</span>';
-    const w = Math.max(0, Math.min(100, v));
-    return '<div class="barwrap"><span class="cbar"><i style="width:' + w.toFixed(1) + '%"></i></span><span class="cpct">' + (Math.round(v * 10) / 10).toString().replace('.', ',') + '%</span></div>';
-  };
-  const certTag = v => { if (v == null) return '<span class="sin-plat">—</span>'; const cl = v > 50 ? 'cert-v' : v < 30 ? 'cert-r' : 'cert-a'; return '<span class="cert-tag ' + cl + '">' + (Math.round(v * 10) / 10).toString().replace('.', ',') + '%</span>'; };
-  const body = nivs.map(n =>
-    '<tr><td><span class="niv-badge">' + escapeHtml(n.nivel) + '</span></td>' +
-    '<td class="num">' + n.emails.size.toLocaleString('es-AR') + '</td>' +
-    '<td class="num">' + certTag(n.emails.size ? (n.certEmails.size / n.emails.size * 100) : null) + '</td>' +
-    '<td class="num">' + bar(pct(n.comp, n.tot)) + '</td>' +
-    '<td class="num">' + bar(pct(n.obligComp, n.obligTot)) + '</td></tr>'
-  ).join('');
-  return '<div class="certif-nivel-title">Avance por nivel · ciclo ' + escapeHtml(cy.ciclo || DETALLE_CICLO) + '</div>' +
-    '<table class="certif-niv"><thead><tr><th>Nivel</th><th class="num">Estudiantes</th><th class="num">Tasa cert.</th><th class="num">Avance total</th><th class="num">Avance obligatorio</th></tr></thead><tbody>' + body + '</tbody></table>';
+  if (!cy) return null;
+  let comp = 0, tot = 0;
+  Object.values(cy.niveles).forEach(n => { comp += n.comp; tot += n.tot; });
+  return tot > 0 ? (comp / tot * 100) : null;
 }
 
+function parseComentarios(text) {
+  const arr = (Papa.parse(text, { skipEmptyLines: true }).data) || [];
+  let hi = arr.findIndex(r => Array.isArray(r) && r.some(c => { const k = normKey(c); return k === 'cod' || k === 'escuela'; }));
+  if (hi < 0) hi = 0;
+  const H = arr[hi];
+  const iCod = certColIdx(H, 'COD', 'Cod', 'Escuela', 'Colegio');
+  let iCom = certColIdx(H, 'Comentario', 'Comentarios', 'Comentario cierre', 'Comentario del mentor', 'Observaciones');
+  if (iCom < 0) iCom = H.findIndex(h => /coment|observ/i.test(String(h)));
+  const fechaCols = [];
+  H.forEach((h, idx) => { if (idx !== iCod && idx !== iCom && /fecha/i.test(String(h))) fechaCols.push({ idx, label: clean(h) }); });
+  const map = {};
+  for (let r = hi + 1; r < arr.length; r++) {
+    const row = arr[r]; if (!Array.isArray(row)) continue;
+    const cod = clean(iCod >= 0 ? row[iCod] : ''); if (!cod) continue;
+    const comentario = clean(iCom >= 0 ? row[iCom] : '');
+    const fechas = fechaCols.map(fc => ({ label: fc.label, value: clean(row[fc.idx]) })).filter(x => x.value);
+    if (!comentario && !fechas.length) continue;
+    map[codKeyC(cod)] = { comentario, fechas };
+  }
+  return map;
+}
+
+function certifNivelPanel(cod, ano) {
+  const cy = detalleFor(cod, ano);
+  let nivHtml;
+  if (!cy) nivHtml = '<div class="certif-nivel-empty">Sin detalle de avance para este ciclo.</div>';
+  else {
+    const nivs = Object.values(cy.niveles).sort((a, b) => {
+      const ia = NIVEL_ORDER.indexOf(a.nivel), ib = NIVEL_ORDER.indexOf(b.nivel);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.nivel.localeCompare(b.nivel);
+    });
+    const pct = (n, t) => t > 0 ? (n / t * 100) : null;
+    const bar = v => {
+      if (v == null) return '<span class="sin-plat">\u2014</span>';
+      const w = Math.max(0, Math.min(100, v));
+      return '<div class="barwrap"><span class="cbar"><i style="width:' + w.toFixed(1) + '%"></i></span><span class="cpct">' + (Math.round(v * 10) / 10).toString().replace('.', ',') + '%</span></div>';
+    };
+    const certTag = v => { if (v == null) return '<span class="sin-plat">\u2014</span>'; const cl = v > 50 ? 'cert-v' : v < 30 ? 'cert-r' : 'cert-a'; return '<span class="cert-tag ' + cl + '">' + (Math.round(v * 10) / 10).toString().replace('.', ',') + '%</span>'; };
+    const body = nivs.map(n =>
+      '<tr><td><span class="niv-badge">' + escapeHtml(n.nivel) + '</span></td>' +
+      '<td class="num">' + n.emails.size.toLocaleString('es-AR') + '</td>' +
+      '<td class="num">' + certTag(n.emails.size ? (n.certEmails.size / n.emails.size * 100) : null) + '</td>' +
+      '<td class="num">' + bar(pct(n.comp, n.tot)) + '</td>' +
+      '<td class="num">' + bar(pct(n.obligComp, n.obligTot)) + '</td></tr>'
+    ).join('');
+    const ar = avanceRuta(cod, ano);
+    const arRow = ar == null ? '' : '<div class="ruta-combinada">Avance de ruta (obligatorios + optativos): <b>' + (Math.round(ar * 10) / 10).toString().replace('.', ',') + '%</b></div>';
+    nivHtml = '<div class="certif-nivel-title">Avance por nivel \u00b7 ciclo ' + escapeHtml(cy.ciclo || DETALLE_CICLO) + '</div>' +
+      '<table class="certif-niv"><thead><tr><th>Nivel</th><th class="num">Estudiantes</th><th class="num">Tasa cert.</th><th class="num">Avance total</th><th class="num">Avance obligatorio</th></tr></thead><tbody>' + body + '</tbody></table>' + arRow;
+  }
+  const com = COMENTARIOS_BY_COD[codKeyC(cod)];
+  let cierreHtml = '';
+  if (com) {
+    const fechas = (com.fechas || []).map(fx => '<div class="cierre-fecha"><span class="cf-lbl">' + escapeHtml(fx.label) + '</span><span class="cf-val">' + escapeHtml(fx.value) + '</span></div>').join('');
+    cierreHtml = '<div class="certif-cierre"><div class="certif-nivel-title">Cierre del mentor</div>' +
+      (com.comentario ? '<div class="cierre-coment">' + escapeHtml(com.comentario) + '</div>' : '') +
+      (fechas ? '<div class="cierre-fechas">' + fechas + '</div>' : '') +
+      '</div>';
+  }
+  if (cierreHtml) return '<div class="certif-panel-grid"><div class="certif-panel-niv">' + nivHtml + '</div>' + cierreHtml + '</div>';
+  return nivHtml;
+}
 let CERTIF_NIVEL_METRIC = 'cert';
 let CERTIF_TOP_MODE = 'top';
 let CERTIF_LAST_ROWS = null;
@@ -2465,7 +2524,7 @@ function renderCertifAdvanced(rows) {
       '<div class="tile"><div class="big">' + nfmt(totalCert) + '</div><div class="cap">Certificaciones otorgadas</div></div>' +
       '<div class="tile"><div class="big">' + nfmt(estud) + '</div><div class="cap">Estudiantes que desarrollaron habilidades digitales</div></div>' +
       '<div class="tile"><div class="big">' + nfmt(cods50.size) + '<span class="u"> / ' + nfmt(codsAll.size) + '</span></div><div class="cap">Colegios con +50% cert.</div></div>';
-    const cursosBlock = '<div class="cursos"><div class="top"><span class="lbl">Cursos aprobados</span><b>' + nfmt(tComp) + ' <span class="tot">/ ' + nfmt(tTot) + '</span></b></div>' +
+    const cursosBlock = '<div class="cursos"><div class="top"><span class="lbl">Cursos aprobados</span><b>' + nfmt(tComp) + ' <span class="tot">/ ' + nfmt(tTot) + ' \u00b7 ' + pctOf(tComp, tTot) + '%</span></b></div>' +
       '<div class="curbar"><div class="curbar-l"><span>Obligatorios</span><span class="muted">' + nfmt(oComp) + ' / ' + nfmt(oTot) + ' \u00b7 ' + pctOf(oComp, oTot) + '%</span></div><div class="curbar-trk"><i style="width:' + pctOf(oComp, oTot) + '%;background:var(--verde)"></i></div></div>' +
       '<div class="curbar"><div class="curbar-l"><span>Optativos</span><span class="muted">' + nfmt(pComp) + ' / ' + nfmt(pTot) + ' \u00b7 ' + pctOf(pComp, pTot) + '%</span></div><div class="curbar-trk"><i style="width:' + pctOf(pComp, pTot) + '%;background:var(--amarillo)"></i></div></div></div>';
     const dest = [];
@@ -2496,11 +2555,12 @@ function certifCrecimiento(rowsChart) {
 async function loadCertif() {
   const cont = document.getElementById('certif-content');
   try {
-    const [certifRes, coreRes, detRes] = await Promise.all([fetch(CSV_URL_CERTIF), fetch(CSV_URL_CORE), fetch(CSV_URL_DETALLE)]);
+    const [certifRes, coreRes, detRes, comRes] = await Promise.all([fetch(CSV_URL_CERTIF), fetch(CSV_URL_CORE), fetch(CSV_URL_DETALLE), fetch(CSV_URL_COMENTARIOS)]);
     if (!certifRes.ok) throw new Error('HTTP ' + certifRes.status);
     const rows = parseCertif(await certifRes.text());
     // Detalle de avance por alumno → agregado por COD × nivel (para el desplegable)
     DETALLE_BY_COD = detRes.ok ? buildDetalle(await detRes.text()) : {};
+    COMENTARIOS_BY_COD = comRes.ok ? parseComentarios(await comRes.text()) : {};
     // Cruce contra Core 2026 (fuente completa de opmode/red/país/calendario/mentor); RAW como respaldo
     const coreByCod = {};
     if (coreRes.ok) parseCore(await coreRes.text()).forEach(s => { if (s.cod) coreByCod[codKeyC(s.cod)] = s; });
@@ -2646,11 +2706,13 @@ function renderCertifBody() {
     tEl.textContent = pond == null ? '—' : certPondFmt(pond);
     tEl.style.color = pond == null ? '' : (pond > 50 ? 'var(--verde)' : pond < 30 ? 'var(--rojo)' : 'var(--amarillo)');
   }
+  rows.forEach(c => c._ruta = avanceRuta(c.cod, c.ano));
   const V = c => ({
     colegio: c.escuela.toLowerCase(), pais: c.pais.toLowerCase(),
     rutas: c.rutas == null ? -1 : c.rutas, estudiantes: c.estudiantes == null ? -1 : c.estudiantes,
     inscripciones: c.inscripciones == null ? -1 : c.inscripciones, certif: c.certificados == null ? -1 : c.certificados,
     tc: c.tcNum == null ? -1 : c.tcNum, to: c.toNum == null ? -1 : c.toNum, tn: c.tnNum == null ? -1 : c.tnNum,
+    avanceruta: c._ruta == null ? -1 : c._ruta,
     ano: c.ano
   })[CERTIF_SORT.key];
   rows.sort((a, b) => {
@@ -2687,10 +2749,11 @@ function renderCertifBody() {
     '<th class="num ' + cls('tc') + '" data-k="tc">Tasa cert.* ' + arrow('tc') + '</th>' +
     '<th class="num ' + cls('to') + '" data-k="to">Aprob. oblig. ' + arrow('to') + '</th>' +
     '<th class="num ' + cls('tn') + '" data-k="tn">Aprob. no oblig. ' + arrow('tn') + '</th>' +
+    '<th class="num ' + cls('avanceruta') + '" data-k="avanceruta">Avance ruta ' + arrow('avanceruta') + '</th>' +
     (hasAno ? '<th class="' + cls('ano') + '" data-k="ano">Año/Ciclo ' + arrow('ano') + '</th>' : '') +
     '</tr></thead>';
-  const colspan = hasAno ? 10 : 9;
-  const canExpand = c => !!detalleFor(c.cod, c.ano);
+  const colspan = hasAno ? 11 : 10;
+  const canExpand = c => !!(detalleFor(c.cod, c.ano) || COMENTARIOS_BY_COD[codKeyC(c.cod)]);
   const rowKeyOf = c => (codKeyC(c.cod) + '_' + String(c.ano || '')).replace(/[^A-Za-z0-9_]/g, '');
   const body = rows.map(c => {
     const hasDet = canExpand(c);
@@ -2708,6 +2771,7 @@ function renderCertifBody() {
       '<td class="num">' + tagTC(c) + '</td>' +
       '<td class="num">' + plain(c.toRaw) + '</td>' +
       '<td class="num">' + plain(c.tnRaw) + '</td>' +
+      '<td class="num">' + (c._ruta == null ? nd : '<span class="ruta-tag">' + (Math.round(c._ruta * 10) / 10).toString().replace('.', ',') + '%</span>') + '</td>' +
       (hasAno ? '<td>' + (c.ano ? escapeHtml(c.ano) : nd) + '</td>' : '') +
       '</tr>';
     if (open) tr += '<tr class="certif-panel" data-panel-for="' + rk + '"><td colspan="' + colspan + '"><div class="certif-panel-in">' + certifNivelPanel(c.cod, c.ano) + '</div></td></tr>';
