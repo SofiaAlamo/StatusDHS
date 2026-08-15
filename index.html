@@ -780,6 +780,8 @@
       .certif-narr li:last-child { border-bottom:none; }
       .certif-narr .log li::before { content:"\2713"; position:absolute; left:0; color:var(--verde); font-weight:700; }
       .certif-narr .opp li::before { content:"\2192"; position:absolute; left:0; color:var(--amarillo); font-weight:700; }
+      .certif-narr .narr-accion { display:block; font-size:11px; color:var(--ink-mute); margin-top:3px; padding-left:2px; border-left:2px solid #eee; padding-left:8px; }
+      .certif-narr .narr-accion b { color:var(--verde); font-weight:700; }
       .certif-sum tr.pais td { background:#fafafa; font-weight:700; }
       .certif-sum tr.opm td:first-child { padding-left:20px; font-weight:600; }
       .certif-sum tr.sis td:first-child { padding-left:36px; color:var(--ink-mute); font-size:11.5px; }
@@ -818,6 +820,14 @@
       .chip.g { background:rgba(39,160,90,.12); color:var(--verde); }
       .nivlegend { display:flex; flex-wrap:wrap; gap:4px 12px; font-size:10px; color:var(--ink-mute); margin-top:8px; }
       .nivlegend b { color:var(--ink); }
+      .serie { margin-bottom:12px; }
+      .serie:last-child { margin-bottom:0; }
+      .serie-h { font-family:"Barlow Condensed",sans-serif; font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:.03em; color:#333; margin-bottom:5px; padding-bottom:3px; border-bottom:1px solid #eee; }
+      .serie-brow { display:flex; align-items:center; gap:8px; font-size:11px; padding:3px 0; }
+      .serie-brow .sb-lab { width:52px; font-weight:700; color:#555; flex-shrink:0; }
+      .serie-brow .sb-track { flex:1; height:14px; background:#f0f0f0; border-radius:4px; overflow:hidden; }
+      .serie-brow .sb-track > i { display:block; height:100%; border-radius:4px; }
+      .serie-brow .sb-val { width:40px; text-align:right; font-weight:700; flex-shrink:0; }
       .ruta-tag { font-weight:700; }
       .ruta-combinada { margin-top:8px; font-size:12px; color:var(--ink); background:#fbfbf7; border:1px solid #eee; border-radius:6px; padding:6px 10px; }
       .ruta-combinada b { font-size:13px; }
@@ -2319,16 +2329,21 @@ function parseNarrativa(text) {
   const iP = certColIdx(H, 'País', 'Pais');
   const iL = certColIdx(H, 'Logros', 'Logros destacados', 'Logro');
   const iO = certColIdx(H, 'Oportunidades', 'Oportunidades de mejora', 'Oportunidad', 'Mejoras');
-  const split = v => String(v || '').split(/[\n;•]+/).map(x => x.replace(/^[\s\-–•]+/, '').trim()).filter(Boolean);
+  const iA = certColIdx(H, 'Qué definimos', 'Que definimos', 'Acciones', 'Acción', 'Accion', 'Definimos', 'Mejoras definidas');
+  const items = v => String(v || '').split(/[\n•]+/).map(x => x.replace(/^[\s\-–•]+/, '').trim()).filter(Boolean);
   const map = {};
+  let lastPais = '';
   for (let r = hi + 1; r < arr.length; r++) {
     const row = arr[r]; if (!Array.isArray(row)) continue;
-    const pais = clean(iP >= 0 ? row[iP] : ''); if (!pais) continue;
-    map[normKey(pais)] = { pais, logros: split(iL >= 0 ? row[iL] : ''), oportunidades: split(iO >= 0 ? row[iO] : '') };
+    const p = clean(iP >= 0 ? row[iP] : ''); if (p) lastPais = p;
+    if (!lastPais) continue;
+    const m = map[normKey(lastPais)] || (map[normKey(lastPais)] = { pais: lastPais, logros: [], oportunidades: [] });
+    items(iL >= 0 ? row[iL] : '').forEach(x => m.logros.push(x));
+    const ops = items(iO >= 0 ? row[iO] : '');
+    if (ops.length) { const acc = clean(iA >= 0 ? row[iA] : ''); ops.forEach(x => m.oportunidades.push({ texto: x, accion: acc })); }
   }
   return map;
 }
-
 function buildClases(text) {
   const arr = (Papa.parse(text, { skipEmptyLines: true }).data) || [];
   let hi = arr.findIndex(r => Array.isArray(r) && r.some(c => { const k = normKey(c); return k === 'cod' || k === 'organization_name' || k === 'email'; }));
@@ -2400,6 +2415,13 @@ function buildDetalle(text) {
 }
 
 const NIVEL_ORDER = ['KOF1', 'KOF2', 'KOF3', 'WEB1', 'WEB2', 'WEB3', 'ST1P', 'ST2P', 'ST3P', 'DATA', 'DMST', 'PYTH'];
+const NIVEL_SERIES = [
+  { name: 'Kick-off', niveles: ['KOF1', 'KOF2', 'KOF3'] },
+  { name: 'Web Basics', niveles: ['WEB1', 'WEB2', 'WEB3'] },
+  { name: 'Senior Tracks Mixtos con Python', niveles: ['ST1P', 'ST2P', 'ST3P'] },
+  { name: 'Senior Tracks Mixtos con JavaScript', niveles: ['ST1J', 'ST2J', 'ST3J'] },
+  { name: 'Senior Tracks Puros', niveles: ['DMST', 'DATA', 'PYTH', 'AVJS'] }
+];
 
 function detalleFor(cod, ano) {
   const d = DETALLE_BY_COD[codKeyC(cod)];
@@ -2557,26 +2579,24 @@ function renderCertifAdvanced(rows) {
 
   const nivChart = document.getElementById('certif-nivel-chart');
   if (nivChart) {
-    const ordered = Object.values(byNivel).sort((a, b) => {
-      const ia = NIVEL_ORDER.indexOf(a.nivel), ib = NIVEL_ORDER.indexOf(b.nivel);
-      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.nivel.localeCompare(b.nivel);
+    const isC = CERTIF_NIVEL_METRIC !== 'avance';
+    const valOf = g => isC ? (g.students > 0 ? (g.cert / g.students * 100) : null) : (g.clasesTot > 0 ? (g.clasesComp / g.clasesTot * 100) : null);
+    const cntOf = g => isC ? (g.cert.toLocaleString('es-AR') + '/' + g.students.toLocaleString('es-AR') + ' cert.') : (g.clasesComp.toLocaleString('es-AR') + '/' + g.clasesTot.toLocaleString('es-AR') + ' clases');
+    const barCol = v => v == null ? '#ddd' : v > 50 ? '#27a05a' : v < 30 ? '#c0392b' : '#d4a017';
+    const brow = (label, g) => {
+      const v = valOf(g), w = v == null ? 0 : Math.max(0, Math.min(100, v));
+      return '<div class="serie-brow" title="' + escapeHtml(nivelNombre(label) + ' · ' + cntOf(g)) + '"><span class="sb-lab">' + escapeHtml(label) + '</span><span class="sb-track"><i style="width:' + w.toFixed(0) + '%;background:' + barCol(v) + '"></i></span><span class="sb-val">' + (v == null ? '—' : Math.round(v) + '%') + '</span></div>';
+    };
+    const enSerie = new Set(); NIVEL_SERIES.forEach(sr => sr.niveles.forEach(n => enSerie.add(n)));
+    const otrosNiv = Object.keys(byNivel).filter(n => !enSerie.has(n)).sort();
+    let html = '';
+    NIVEL_SERIES.forEach(sr => {
+      const nivs = sr.niveles.filter(n => byNivel[n]);
+      if (!nivs.length) return;
+      html += '<div class="serie"><div class="serie-h">' + escapeHtml(sr.name) + '</div>' + nivs.map(n => brow(n, byNivel[n])).join('') + '</div>';
     });
-    if (!ordered.length) nivChart.innerHTML = '<div class="certif-nivel-empty">Sin datos de detalle para el scope.</div>';
-    else {
-      const canon = ordered.filter(g => NIVEL_ORDER.indexOf(g.nivel) >= 0);
-      const otros = ordered.filter(g => NIVEL_ORDER.indexOf(g.nivel) < 0);
-      const oAgg = otros.reduce((a, g) => { a.comp += g.comp; a.tot += g.tot; a.clasesComp += g.clasesComp; a.clasesTot += g.clasesTot; a.cert += g.cert; a.students += g.students; return a; }, { nivel: 'Otros', comp: 0, tot: 0, clasesComp: 0, clasesTot: 0, cert: 0, students: 0 });
-      const list = otros.length ? canon.concat([oAgg]) : canon;
-      const isC = CERTIF_NIVEL_METRIC !== 'avance';
-      const items = list.map(g => {
-        const value = isC ? (g.students > 0 ? (g.cert / g.students * 100) : null) : (g.clasesTot > 0 ? (g.clasesComp / g.clasesTot * 100) : null);
-        const nm = g.nivel === 'Otros' ? ('Otros: ' + otros.map(o => o.nivel).join(', ')) : nivelNombre(g.nivel);
-        const cnt = isC ? (g.cert.toLocaleString('es-AR') + '/' + g.students.toLocaleString('es-AR') + ' cert.') : (g.clasesComp.toLocaleString('es-AR') + '/' + g.clasesTot.toLocaleString('es-AR') + ' clases');
-        return { label: g.nivel, value, title: nm + ' · ' + cnt };
-      });
-      const legend = '<div class="nivlegend">' + canon.map(g => '<span><b>' + escapeHtml(g.nivel) + '</b> ' + escapeHtml(nivelNombre(g.nivel)) + '</span>').join('') + (otros.length ? '<span><b>Otros</b> ' + escapeHtml(otros.map(o => o.nivel).join(', ')) + '</span>' : '') + '</div>';
-      nivChart.innerHTML = svgBars(items, isC) + legend;
-    }
+    if (otrosNiv.length) html += '<div class="serie"><div class="serie-h">Otros</div>' + otrosNiv.map(n => brow(n, byNivel[n])).join('') + '</div>';
+    nivChart.innerHTML = html || '<div class="certif-nivel-empty">Sin datos de detalle para el scope.</div>';
   }
 
   const mEl = document.getElementById('certif-mentor-chart');
@@ -2928,12 +2948,13 @@ function renderCertifNarrativa(paisSel) {
   const nEl = document.getElementById('certif-narrativa'); if (!nEl) return;
   const nar = (paisSel && paisSel !== '__all__') ? NARRATIVA_BY_PAIS[normKey(paisSel)] : null;
   if (!nar || (!nar.logros.length && !nar.oportunidades.length)) { nEl.style.display = 'none'; nEl.innerHTML = ''; return; }
-  const li = a => a.map(x => '<li>' + escapeHtml(x) + '</li>').join('');
+  const liL = a => a.map(x => '<li>' + escapeHtml(x) + '</li>').join('');
+  const liO = a => a.map(o => '<li>' + escapeHtml(o.texto) + (o.accion ? '<span class="narr-accion"><b>Definimos:</b> ' + escapeHtml(o.accion) + '</span>' : '') + '</li>').join('');
   nEl.innerHTML = '<div class="certif-narr">' +
     '<div class="narr-head">Lectura del período <span class="narr-pais">' + escapeHtml(nar.pais) + '</span></div>' +
     '<div class="narr-cols">' +
-      (nar.logros.length ? '<div class="narr-col log"><h5>Logros destacados</h5><ul>' + li(nar.logros) + '</ul></div>' : '') +
-      (nar.oportunidades.length ? '<div class="narr-col opp"><h5>Oportunidades de mejora</h5><ul>' + li(nar.oportunidades) + '</ul></div>' : '') +
+      (nar.logros.length ? '<div class="narr-col log"><h5>Logros destacados</h5><ul>' + liL(nar.logros) + '</ul></div>' : '') +
+      (nar.oportunidades.length ? '<div class="narr-col opp"><h5>Oportunidades de mejora</h5><ul>' + liO(nar.oportunidades) + '</ul></div>' : '') +
     '</div></div>';
   nEl.style.display = '';
 }
