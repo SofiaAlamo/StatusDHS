@@ -763,6 +763,26 @@
       .certif-adv-toggle .chev { color:var(--ink-mute); font-size:11px; margin-right:6px; }
       .certif-adv-body { margin-top:12px; }
       .certif-adv-body.hidden { display:none; }
+      .certif-adv-title { font-family:"Barlow Condensed",sans-serif; font-weight:700; font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-mute); margin-bottom:8px; }
+      .certif-det { margin-top:16px; }
+      .certif-det-body { margin-top:12px; }
+      .certif-det-body.hidden { display:none; }
+      .certif-narr { background:#fff; border:1px solid var(--line); border-left:4px solid #FFC72C; border-radius:10px; padding:14px 16px; margin-bottom:16px; }
+      .certif-narr .narr-head { font-family:"Barlow Condensed",sans-serif; font-weight:700; font-size:14px; text-transform:uppercase; letter-spacing:.03em; margin-bottom:10px; }
+      .certif-narr .narr-pais { background:#111; color:#fff; font-size:11px; padding:2px 9px; border-radius:5px; margin-left:6px; }
+      .certif-narr .narr-cols { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+      @media (max-width:640px) { .certif-narr .narr-cols { grid-template-columns:1fr; } }
+      .certif-narr h5 { font-family:"Barlow Condensed",sans-serif; font-weight:700; font-size:12.5px; text-transform:uppercase; letter-spacing:.04em; margin:0 0 6px; }
+      .certif-narr .log h5 { color:var(--verde); }
+      .certif-narr .opp h5 { color:var(--amarillo); }
+      .certif-narr ul { margin:0; padding:0; list-style:none; }
+      .certif-narr li { font-size:12px; line-height:1.45; padding:5px 0 5px 20px; position:relative; border-bottom:1px solid #f2f2f2; }
+      .certif-narr li:last-child { border-bottom:none; }
+      .certif-narr .log li::before { content:"\2713"; position:absolute; left:0; color:var(--verde); font-weight:700; }
+      .certif-narr .opp li::before { content:"\2192"; position:absolute; left:0; color:var(--amarillo); font-weight:700; }
+      .certif-sum tr.pais td { background:#fafafa; font-weight:700; }
+      .certif-sum tr.opm td:first-child { padding-left:20px; font-weight:600; }
+      .certif-sum tr.sis td:first-child { padding-left:36px; color:var(--ink-mute); font-size:11.5px; }
       .certif-adv-head { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:2px; }
       .certif-seg { display:inline-flex; border:1px solid var(--line); border-radius:6px; overflow:hidden; }
       .certif-seg button { border:none; background:#fff; color:var(--ink-mute); font-size:11px; font-weight:700; padding:4px 10px; cursor:pointer; }
@@ -790,7 +810,7 @@
       .curbar-l .muted { color:var(--ink-mute); }
       .curbar-trk { height:9px; background:#eee; border-radius:5px; overflow:hidden; }
       .curbar-trk > i { display:block; height:100%; border-radius:5px; }
-      .ment { display:flex; flex-direction:column; gap:10px; }
+      .ment { display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:10px; }
       .mrow { display:flex; align-items:center; gap:12px; padding:8px 10px; border:1px solid var(--line); border-radius:9px; background:#fff; }
       .mrow .name { font-weight:700; font-size:13px; }
       .mrow .chips { margin-top:3px; display:flex; gap:6px; flex-wrap:wrap; }
@@ -2170,6 +2190,8 @@ const CSV_URL_CLASES = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQup14C
 let DETALLE_EMAIL_IDX = {};
 let NAME_TO_COD = {};
 let CLASES_BY_COD = {};
+const CSV_URL_NARRATIVA = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSPFRKVvwUioC_7rKCblIMz7Cu7qvQpQI8LJM982dThQkT_hLqaJgwU2Js8OhEZag4aJ3_5GCfvzSwd/pub?gid=185533443&single=true&output=csv';
+let NARRATIVA_BY_PAIS = {};
 const CERTIF_EXPANDED = new Set();
 let CERTIF_ALL = [];
 let CERTIF_LOADED = false;
@@ -2289,6 +2311,24 @@ function nivOfTrack(t) {
   if (m) return m[1];
   return '';
 }
+function parseNarrativa(text) {
+  const arr = (Papa.parse(text, { skipEmptyLines: true }).data) || [];
+  let hi = arr.findIndex(r => Array.isArray(r) && r.some(c => normKey(c) === 'pais'));
+  if (hi < 0) hi = 0;
+  const H = arr[hi];
+  const iP = certColIdx(H, 'País', 'Pais');
+  const iL = certColIdx(H, 'Logros', 'Logros destacados', 'Logro');
+  const iO = certColIdx(H, 'Oportunidades', 'Oportunidades de mejora', 'Oportunidad', 'Mejoras');
+  const split = v => String(v || '').split(/[\n;•]+/).map(x => x.replace(/^[\s\-–•]+/, '').trim()).filter(Boolean);
+  const map = {};
+  for (let r = hi + 1; r < arr.length; r++) {
+    const row = arr[r]; if (!Array.isArray(row)) continue;
+    const pais = clean(iP >= 0 ? row[iP] : ''); if (!pais) continue;
+    map[normKey(pais)] = { pais, logros: split(iL >= 0 ? row[iL] : ''), oportunidades: split(iO >= 0 ? row[iO] : '') };
+  }
+  return map;
+}
+
 function buildClases(text) {
   const arr = (Papa.parse(text, { skipEmptyLines: true }).data) || [];
   let hi = arr.findIndex(r => Array.isArray(r) && r.some(c => { const k = normKey(c); return k === 'cod' || k === 'organization_name' || k === 'email'; }));
@@ -2338,7 +2378,7 @@ function buildDetalle(text) {
     const row = arr[r]; if (!Array.isArray(row)) continue;
     const cod = clean(iCod >= 0 ? row[iCod] : ''); if (!cod) continue;
     const niv = nivOf(iBase >= 0 ? row[iBase] : ''); if (!niv) continue;
-    if (/^R/i.test(niv)) continue; // excluir ramp-ups (RAMP, RUPW, etc.)
+    if (/^R/i.test(niv) || /^MBH/i.test(niv)) continue; // excluir ramp-ups y MBH (en desuso)
     const ciclo = (iCiclo >= 0 ? clean(row[iCiclo]) : '') || DETALLE_CICLO;
     if (String(ciclo).replace(/[^0-9]/g, '') === '2026') continue; // excluir 2026
     const email = clean(iEmail >= 0 ? row[iEmail] : '').toLowerCase();
@@ -2389,9 +2429,8 @@ function parseComentarios(text) {
   const iCod = certColIdx(H, 'COD', 'Cod', 'Escuela', 'Colegio');
   let iCom = certColIdx(H, 'Comentario', 'Comentarios', 'Comentario cierre', 'Comentario del mentor', 'Observaciones');
   if (iCom < 0) iCom = H.findIndex(h => /coment|observ/i.test(String(h)));
-  const relabelFecha = h => /informe|diploma|anal[ií]tico/i.test(String(h)) ? 'Fecha de envío de diplomas/informes analíticos' : clean(h);
   const fechaCols = [];
-  H.forEach((h, idx) => { if (idx !== iCod && idx !== iCom && /fecha/i.test(String(h))) fechaCols.push({ idx, label: relabelFecha(h) }); });
+  H.forEach((h, idx) => { if (idx !== iCod && idx !== iCom && /fecha/i.test(String(h))) fechaCols.push({ idx, label: clean(h) }); });
   const map = {};
   for (let r = hi + 1; r < arr.length; r++) {
     const row = arr[r]; if (!Array.isArray(row)) continue;
@@ -2524,11 +2563,19 @@ function renderCertifAdvanced(rows) {
     });
     if (!ordered.length) nivChart.innerHTML = '<div class="certif-nivel-empty">Sin datos de detalle para el scope.</div>';
     else {
-      const items = CERTIF_NIVEL_METRIC === 'avance'
-        ? ordered.map(g => ({ label: g.nivel, value: g.clasesTot > 0 ? (g.clasesComp / g.clasesTot * 100) : null, title: nivelNombre(g.nivel) }))
-        : ordered.map(g => ({ label: g.nivel, value: g.students > 0 ? (g.cert / g.students * 100) : null, sub: g.cert.toLocaleString('es-AR') + '/' + g.students.toLocaleString('es-AR'), title: nivelNombre(g.nivel) }));
-      const legend = '<div class="nivlegend">' + ordered.map(g => '<span><b>' + escapeHtml(g.nivel) + '</b> ' + escapeHtml(nivelNombre(g.nivel)) + '</span>').join('') + '</div>';
-      nivChart.innerHTML = svgBars(items, CERTIF_NIVEL_METRIC !== 'avance') + legend;
+      const canon = ordered.filter(g => NIVEL_ORDER.indexOf(g.nivel) >= 0);
+      const otros = ordered.filter(g => NIVEL_ORDER.indexOf(g.nivel) < 0);
+      const oAgg = otros.reduce((a, g) => { a.comp += g.comp; a.tot += g.tot; a.clasesComp += g.clasesComp; a.clasesTot += g.clasesTot; a.cert += g.cert; a.students += g.students; return a; }, { nivel: 'Otros', comp: 0, tot: 0, clasesComp: 0, clasesTot: 0, cert: 0, students: 0 });
+      const list = otros.length ? canon.concat([oAgg]) : canon;
+      const isC = CERTIF_NIVEL_METRIC !== 'avance';
+      const items = list.map(g => {
+        const value = isC ? (g.students > 0 ? (g.cert / g.students * 100) : null) : (g.clasesTot > 0 ? (g.clasesComp / g.clasesTot * 100) : null);
+        const nm = g.nivel === 'Otros' ? ('Otros: ' + otros.map(o => o.nivel).join(', ')) : nivelNombre(g.nivel);
+        const cnt = isC ? (g.cert.toLocaleString('es-AR') + '/' + g.students.toLocaleString('es-AR') + ' cert.') : (g.clasesComp.toLocaleString('es-AR') + '/' + g.clasesTot.toLocaleString('es-AR') + ' clases');
+        return { label: g.nivel, value, title: nm + ' · ' + cnt };
+      });
+      const legend = '<div class="nivlegend">' + canon.map(g => '<span><b>' + escapeHtml(g.nivel) + '</b> ' + escapeHtml(nivelNombre(g.nivel)) + '</span>').join('') + (otros.length ? '<span><b>Otros</b> ' + escapeHtml(otros.map(o => o.nivel).join(', ')) + '</span>' : '') + '</div>';
+      nivChart.innerHTML = svgBars(items, isC) + legend;
     }
   }
 
@@ -2542,7 +2589,7 @@ function renderCertifAdvanced(rows) {
       m.cods.add(codKeyC(c.cod));
     });
     const arr = Object.values(byMent).map(m => ({ mentor: m.mentor, tasa: m.ins > 0 ? (m.cert / m.ins * 100) : null, n: m.cods.size, cert: m.cert }))
-      .filter(m => m.tasa != null).sort((a, b) => b.tasa - a.tasa).slice(0, 12);
+      .filter(m => m.tasa != null).sort((a, b) => b.tasa - a.tasa);
     if (!arr.length) mEl.innerHTML = '<div class="certif-nivel-empty">Sin datos de mentor para el scope.</div>';
     else mEl.innerHTML = '<div class="ment">' + arr.map(m => {
       const stroke = m.tasa > 50 ? '#27a05a' : m.tasa < 30 ? '#c0392b' : '#d4a017';
@@ -2619,7 +2666,7 @@ function certifCrecimiento(rowsChart) {
 async function loadCertif() {
   const cont = document.getElementById('certif-content');
   try {
-    const [certifRes, coreRes, detRes, comRes, clasesRes] = await Promise.all([fetch(CSV_URL_CERTIF), fetch(CSV_URL_CORE), fetch(CSV_URL_DETALLE), fetch(CSV_URL_COMENTARIOS), fetch(CSV_URL_CLASES)]);
+    const [certifRes, coreRes, detRes, comRes, clasesRes, narrRes] = await Promise.all([fetch(CSV_URL_CERTIF), fetch(CSV_URL_CORE), fetch(CSV_URL_DETALLE), fetch(CSV_URL_COMENTARIOS), fetch(CSV_URL_CLASES), fetch(CSV_URL_NARRATIVA)]);
     if (!certifRes.ok) throw new Error('HTTP ' + certifRes.status);
     const rows = parseCertif(await certifRes.text());
     // Core 2026 primero (para opmode/red/mentor y para resolver COD por nombre)
@@ -2635,6 +2682,7 @@ async function loadCertif() {
     try { CLASES_BY_COD = clasesRes.ok ? buildClases(await clasesRes.text()) : {}; } catch (e) { console.error('Clases:', e); CLASES_BY_COD = {}; }
     if (!clasesRes.ok) console.warn('Clases: no se pudo cargar el CSV (HTTP', clasesRes.status, ')');
     COMENTARIOS_BY_COD = comRes.ok ? parseComentarios(await comRes.text()) : {};
+    NARRATIVA_BY_PAIS = narrRes.ok ? parseNarrativa(await narrRes.text()) : {};
     const rawByCod = {};
     (RAW ? (RAW.rows || []).concat(RAW.rowsNoActivos || []) : []).forEach(s => { if (s.cod) rawByCod[codKeyC(s.cod)] = s; });
     rows.forEach(c => {
@@ -2689,15 +2737,16 @@ function buildCertifShell() {
         '<div class="stat" id="cstat-clases-wrap" style="display:none"><div class="num" id="cstat-clases">—</div><div class="lbl">Avance clases prom.</div><div class="stat-note">Σ clases fin. / Σ clases</div></div>' +
       '</div>' +
     '</section>' +
+    '<div id="certif-narrativa" style="display:none"></div>' +
     '<div class="certif-cards">' +
       '<div class="certif-card"><h4>Resumen por país</h4><div class="csub">Respeta los filtros activos, incluido Ciclo</div><div id="certif-summary"></div></div>' +
       '<div class="certif-card"><h4>Impacto del programa</h4><div class="csub">Impacto del scope filtrado</div><div id="certif-logros"></div></div>' +
     '</div>' +
     '<div class="certif-adv">' +
-      '<button type="button" class="certif-adv-toggle" id="cadv-toggle"><span class="chev" id="cadv-chev">\u25b8</span> Analítica avanzada</button>' +
-      '<div class="certif-adv-body hidden" id="cadv-body">' +
+      '<div class="certif-adv-title">Analítica</div>' +
+      '<div class="certif-adv-body" id="cadv-body">' +
         '<div class="certif-cards">' +
-          '<div class="certif-card"><div class="certif-adv-head"><h4>Comparación por nivel</h4><div class="certif-seg" id="cadv-nivel-seg"><button type="button" data-m="cert" class="on">Tasa cert.</button><button type="button" data-m="avance">Avance</button></div></div><div class="csub">Bajo cada barra: alumnos que <b>certificaron / cursaron</b> · sin ramp-ups</div><div id="certif-nivel-chart"></div></div>' +
+          '<div class="certif-card"><div class="certif-adv-head"><h4>Comparación por nivel</h4><div class="certif-seg" id="cadv-nivel-seg"><button type="button" data-m="cert" class="on">Tasa cert.</button><button type="button" data-m="avance">Avance</button></div></div><div class="csub">Pasá el mouse por cada barra para ver el detalle · sin ramp-ups ni MBH</div><div id="certif-nivel-chart"></div></div>' +
           '<div class="certif-card"><h4>Mentor · tasa cert. y nº de colegios</h4><div class="csub">Barra = tasa cert. ponderada de sus colegios · (n) = colegios</div><div id="certif-mentor-chart"></div></div>' +
         '</div>' +
         '<div class="certif-cards">' +
@@ -2706,7 +2755,10 @@ function buildCertifShell() {
         '</div>' +
       '</div>' +
     '</div>' +
-    '<div id="certif-body"></div>';
+    '<div class="certif-det">' +
+      '<button type="button" class="certif-adv-toggle" id="cdet-toggle"><span class="chev" id="cdet-chev">\u25b8</span> Detalle por colegio</button>' +
+      '<div class="certif-det-body hidden" id="cdet-body"><div id="certif-body"></div></div>' +
+    '</div>';
   ['cf-pais', 'cf-opmode', 'cf-red', 'cf-cal', 'cf-ment'].forEach(id => {
     const el = document.getElementById(id); if (el) el.addEventListener('change', renderCertifBody);
   });
@@ -2719,11 +2771,10 @@ function buildCertifShell() {
     });
   }
   const ci = document.getElementById('cf-col'); if (ci) ci.addEventListener('input', renderCertifBody);
-  const advT = document.getElementById('cadv-toggle');
-  if (advT) advT.addEventListener('click', () => {
-    const b = document.getElementById('cadv-body'), ch = document.getElementById('cadv-chev');
-    if (b) { const now = b.classList.toggle('hidden'); if (ch) ch.textContent = now ? '\u25b8' : '\u25be';
-      if (!now && typeof CERTIF_ROWSCHART !== 'undefined' && CERTIF_ROWSCHART) drawCertifChart(CERTIF_ROWSCHART); }
+  const detT = document.getElementById('cdet-toggle');
+  if (detT) detT.addEventListener('click', () => {
+    const b = document.getElementById('cdet-body'), ch = document.getElementById('cdet-chev');
+    if (b) { const now = b.classList.toggle('hidden'); if (ch) ch.textContent = now ? '\u25b8' : '\u25be'; }
   });
   document.querySelectorAll('#cadv-nivel-seg button').forEach(btn => btn.addEventListener('click', () => {
     CERTIF_NIVEL_METRIC = btn.dataset.m;
@@ -2795,6 +2846,7 @@ function renderCertifBody() {
     return String(b.ano).localeCompare(String(a.ano)); // …y su ciclo más reciente primero
   });
   renderCertifSummary(rows);
+  renderCertifNarrativa(f.pais);
   drawCertifChart(rowsChart);
   CERTIF_ROWSCHART = rowsChart;
   renderCertifAdvanced(rows);
@@ -2872,32 +2924,68 @@ function renderCertifBody() {
   }));
 }
 
+function renderCertifNarrativa(paisSel) {
+  const nEl = document.getElementById('certif-narrativa'); if (!nEl) return;
+  const nar = (paisSel && paisSel !== '__all__') ? NARRATIVA_BY_PAIS[normKey(paisSel)] : null;
+  if (!nar || (!nar.logros.length && !nar.oportunidades.length)) { nEl.style.display = 'none'; nEl.innerHTML = ''; return; }
+  const li = a => a.map(x => '<li>' + escapeHtml(x) + '</li>').join('');
+  nEl.innerHTML = '<div class="certif-narr">' +
+    '<div class="narr-head">Lectura del período <span class="narr-pais">' + escapeHtml(nar.pais) + '</span></div>' +
+    '<div class="narr-cols">' +
+      (nar.logros.length ? '<div class="narr-col log"><h5>Logros destacados</h5><ul>' + li(nar.logros) + '</ul></div>' : '') +
+      (nar.oportunidades.length ? '<div class="narr-col opp"><h5>Oportunidades de mejora</h5><ul>' + li(nar.oportunidades) + '</ul></div>' : '') +
+    '</div></div>';
+  nEl.style.display = '';
+}
+
 function renderCertifSummary(rows) {
   const el = document.getElementById('certif-summary'); if (!el) return;
-  const by = {};
-  rows.forEach(c => {
-    const k = c.pais || 'Sin dato';
-    const o = by[k] || (by[k] = { pais: k, ins: 0, cert: 0, insCert: 0 });
-    o.ins += c.inscripciones || 0;
-    if (c.certificados != null) { o.cert += c.certificados; o.insCert += c.inscripciones || 0; }
-  });
-  const arr = Object.values(by).sort((a, b) => b.cert - a.cert);
-  const tot = { ins: 0, cert: 0, insCert: 0 };
-  arr.forEach(o => { tot.ins += o.ins; tot.cert += o.cert; tot.insCert += o.insCert; });
+  const n = v => v.toLocaleString('es-AR');
   const tasa = o => o.insCert > 0 ? (o.cert / o.insCert * 100) : null;
   const ttag = v => {
-    if (v == null) return '<span class="sin-plat">—</span>';
+    if (v == null) return '<span class="sin-plat">\u2014</span>';
     const cl = v > 50 ? 'cert-v' : v < 30 ? 'cert-r' : 'cert-a';
     return '<span class="cert-tag ' + cl + '">' + certPondFmt(v) + '</span>';
   };
-  const n = v => v.toLocaleString('es-AR');
+  const agg = () => ({ ins: 0, cert: 0, insCert: 0 });
+  const add = (o, c) => { o.ins += c.inscripciones || 0; if (c.certificados != null) { o.cert += c.certificados; o.insCert += c.inscripciones || 0; } };
+  const paisSel = (document.getElementById('cf-pais') || {}).value || '__all__';
+  const single = paisSel && paisSel !== '__all__';
+
+  if (single) {
+    const opm = {};
+    rows.forEach(c => {
+      const om = c.opMode || 'Sin dato', red = c.red || 'Sin red';
+      const o = opm[om] || (opm[om] = Object.assign(agg(), { op: om, sis: {} }));
+      add(o, c);
+      const sg = o.sis[red] || (o.sis[red] = Object.assign(agg(), { red }));
+      add(sg, c);
+    });
+    const oms = Object.values(opm).sort((a, b) => b.cert - a.cert);
+    const oneOp = oms.length <= 1;
+    const tot = agg(); oms.forEach(o => { tot.ins += o.ins; tot.cert += o.cert; tot.insCert += o.insCert; });
+    let body = '<tr class="pais"><td>' + escapeHtml(paisSel) + '</td><td class="n">' + n(tot.ins) + '</td><td class="n">' + n(tot.cert) + '</td><td class="n">' + ttag(tasa(tot)) + '</td></tr>';
+    oms.forEach(o => {
+      if (!oneOp) body += '<tr class="opm"><td>' + escapeHtml(o.op) + '</td><td class="n">' + n(o.ins) + '</td><td class="n">' + n(o.cert) + '</td><td class="n">' + ttag(tasa(o)) + '</td></tr>';
+      Object.values(o.sis).sort((a, b) => b.cert - a.cert).forEach(sg => {
+        body += '<tr class="sis"><td>' + escapeHtml(sg.red) + '</td><td class="n">' + n(sg.ins) + '</td><td class="n">' + n(sg.cert) + '</td><td class="n">' + ttag(tasa(sg)) + '</td></tr>';
+      });
+    });
+    el.innerHTML = '<table class="certif-sum"><thead><tr><th>País / Modo / Sistema</th><th class="n">Inscrip.</th><th class="n">Certif.</th><th class="n">Tasa cert.</th></tr></thead><tbody>' +
+      (oms.length ? body : '<tr><td colspan="4" style="text-align:center;color:var(--ink-mute);padding:16px">Sin datos</td></tr>') + '</tbody></table>';
+    return;
+  }
+
+  const by = {};
+  rows.forEach(c => { const k = c.pais || 'Sin dato'; const o = by[k] || (by[k] = Object.assign(agg(), { pais: k })); add(o, c); });
+  const arr = Object.values(by).sort((a, b) => b.cert - a.cert);
+  const tot = agg(); arr.forEach(o => { tot.ins += o.ins; tot.cert += o.cert; tot.insCert += o.insCert; });
   const body = arr.map(o => '<tr><td>' + escapeHtml(o.pais) + '</td><td class="n">' + n(o.ins) + '</td><td class="n">' + n(o.cert) + '</td><td class="n">' + ttag(tasa(o)) + '</td></tr>').join('');
   const totRow = '<tr class="tot"><td>Total</td><td class="n">' + n(tot.ins) + '</td><td class="n">' + n(tot.cert) + '</td><td class="n">' + ttag(tasa(tot)) + '</td></tr>';
   el.innerHTML = '<table class="certif-sum"><thead><tr><th>País</th><th class="n">Inscrip.</th><th class="n">Certif.</th><th class="n">Tasa cert.</th></tr></thead><tbody>' +
     (body || '<tr><td colspan="4" style="text-align:center;color:var(--ink-mute);padding:16px">Sin datos para los filtros seleccionados</td></tr>') +
     (arr.length ? totRow : '') + '</tbody></table>';
 }
-
 const CERTIF_CHART_COLORS = ['#FFC72C', '#111111', '#27a05a', '#4a90d9', '#d4a017', '#c0392b', '#8e44ad', '#16a085', '#e67e22'];
 
 function drawCertifChart(rows) {
