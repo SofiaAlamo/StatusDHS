@@ -770,7 +770,15 @@
       .certif-narr { background:#fff; border:1px solid var(--line); border-left:4px solid #FFC72C; border-radius:10px; padding:14px 16px; margin-bottom:16px; }
       .certif-narr .narr-head { font-family:"Barlow Condensed",sans-serif; font-weight:700; font-size:14px; text-transform:uppercase; letter-spacing:.03em; margin-bottom:10px; }
       .certif-narr .narr-pais { background:#111; color:#fff; font-size:11px; padding:2px 9px; border-radius:5px; margin-left:6px; }
-      .certif-narr .narr-cols { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+      .certif-narr .narr-cols { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
+      .certif-narr .narr-cols.cols3 { grid-template-columns:1fr 1.15fr 1.15fr; }
+      @media (max-width:900px) { .certif-narr .narr-cols.cols3 { grid-template-columns:1fr; } }
+      .certif-narr ol { margin:0; padding:0; list-style:none; counter-reset:narr; }
+      .certif-narr .opp ol > li, .certif-narr .def ol > li { counter-increment:narr; }
+      .certif-narr .opp ol > li::before { content:counter(narr); position:absolute; left:0; top:5px; width:15px; height:15px; background:var(--amarillo); color:#fff; border-radius:50%; font-size:9px; font-weight:700; text-align:center; line-height:15px; }
+      .certif-narr .def ol > li::before { content:counter(narr); position:absolute; left:0; top:5px; width:15px; height:15px; background:var(--verde); color:#fff; border-radius:50%; font-size:9px; font-weight:700; text-align:center; line-height:15px; }
+      .certif-narr .def h5 { color:var(--verde); }
+      .certif-narr .narr-nd { color:var(--ink-mute); }
       @media (max-width:640px) { .certif-narr .narr-cols { grid-template-columns:1fr; } }
       .certif-narr h5 { font-family:"Barlow Condensed",sans-serif; font-weight:700; font-size:12.5px; text-transform:uppercase; letter-spacing:.04em; margin:0 0 6px; }
       .certif-narr .log h5 { color:var(--verde); }
@@ -2949,12 +2957,15 @@ function renderCertifNarrativa(paisSel) {
   const nar = (paisSel && paisSel !== '__all__') ? NARRATIVA_BY_PAIS[normKey(paisSel)] : null;
   if (!nar || (!nar.logros.length && !nar.oportunidades.length)) { nEl.style.display = 'none'; nEl.innerHTML = ''; return; }
   const liL = a => a.map(x => '<li>' + escapeHtml(x) + '</li>').join('');
-  const liO = a => a.map(o => '<li>' + escapeHtml(o.texto) + (o.accion ? '<span class="narr-accion"><b>Definimos:</b> ' + escapeHtml(o.accion) + '</span>' : '') + '</li>').join('');
+  const liOpp = a => a.map(o => '<li>' + escapeHtml(o.texto) + '</li>').join('');
+  const liDef = a => a.map(o => '<li>' + (o.accion ? escapeHtml(o.accion) : '<span class="narr-nd">—</span>') + '</li>').join('');
+  const hayDef = nar.oportunidades.some(o => o.accion);
   nEl.innerHTML = '<div class="certif-narr">' +
     '<div class="narr-head">Lectura del período <span class="narr-pais">' + escapeHtml(nar.pais) + '</span></div>' +
-    '<div class="narr-cols">' +
+    '<div class="narr-cols' + (hayDef ? ' cols3' : '') + '">' +
       (nar.logros.length ? '<div class="narr-col log"><h5>Logros destacados</h5><ul>' + liL(nar.logros) + '</ul></div>' : '') +
-      (nar.oportunidades.length ? '<div class="narr-col opp"><h5>Oportunidades de mejora</h5><ul>' + liO(nar.oportunidades) + '</ul></div>' : '') +
+      (nar.oportunidades.length ? '<div class="narr-col opp"><h5>Oportunidades de mejora</h5><ol>' + liOpp(nar.oportunidades) + '</ol></div>' : '') +
+      (hayDef ? '<div class="narr-col def"><h5>Qué definimos</h5><ol>' + liDef(nar.oportunidades) + '</ol></div>' : '') +
     '</div></div>';
   nEl.style.display = '';
 }
