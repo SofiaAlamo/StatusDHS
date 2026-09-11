@@ -542,6 +542,37 @@
   .avb-fill.lo{background:#cdd3db;} .avb-fill.mid{background:#e0a92b;} .avb-fill.hi{background:#2ea25a;}
   .avb-pct { font-size:13px; font-weight:700; min-width:38px; text-align:right; }
   .avb-pct.lo{color:#7a8698;} .avb-pct.mid{color:#8a6d12;} .avb-pct.hi{color:#1e7a45;}
+  /* ═══ DESPLEGABLE IMPLEMENTACIÓN · docentes compacto + estudiantes por nivel ═══ */
+  .op-chip { display:inline-block; min-width:22px; height:20px; line-height:18px; text-align:center; border-radius:4px; font-family:var(--cond); font-size:12px; font-weight:700; background:#f4f4f4; border:1px solid var(--line-strong); color:var(--ink-soft); }
+  .pld-band { background:#eef2f7; border:1px solid #d7dde6; border-radius:8px; padding:9px 14px; margin:12px 0 18px; }
+  .pld-top { display:flex; align-items:center; gap:16px; flex-wrap:wrap; font-size:12.5px; color:#33507d; }
+  .pld-top .pld-t { font-family:var(--cond); font-weight:700; font-size:13.5px; text-transform:uppercase; letter-spacing:.05em; }
+  .pld-top b { font-weight:700; }
+  .pld-top .pld-win { margin-left:auto; font-size:11px; color:#5a6b8c; }
+  .pld-toggle { border:1px solid #b9c6d9; background:#fff; color:#33507d; border-radius:50px; padding:3px 12px; font-family:var(--sans); font-size:11.5px; font-weight:600; cursor:pointer; }
+  .pld-toggle:hover { background:#dde6f3; }
+  .pld-list { margin-top:8px; }
+  .pld-list .av-note { margin:0 0 8px; }
+  .pld-row { display:grid; grid-template-columns:minmax(0,1fr) 80px 160px 86px 92px; gap:12px; align-items:center; padding:6px 0; border-top:1px solid #d7dde6; font-size:12px; color:#2c3a54; }
+  .pld-row .nm { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+  .pld-row .nm small { font-weight:400; color:#5a6b8c; margin-left:6px; }
+  .pld-row .rt { text-align:right; color:#5a6b8c; font-size:11.5px; }
+  .pld-empty { font-size:12px; color:#5a6b8c; }
+  .est-head { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin:0 0 8px; }
+  .est-head h4 { font-family:var(--cond); font-size:14px; letter-spacing:.04em; text-transform:uppercase; margin:0; color:var(--ink); }
+  .est-head span { font-size:11.5px; color:var(--ink-mute); }
+  table.est-niv { width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); font-variant-numeric:tabular-nums; }
+  table.est-niv th { font-size:9.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-mute); font-weight:700; text-align:left; padding:8px 10px; background:var(--bg); border-bottom:1px solid var(--line); cursor:default; }
+  table.est-niv th.num, table.est-niv td.num { text-align:right; }
+  table.est-niv td { padding:8px 10px; font-size:12.5px; border-bottom:1px solid #eee; vertical-align:middle; }
+  table.est-niv tbody tr:last-child td { border-bottom:none; }
+  table.est-niv tbody tr:hover { background:transparent; }
+  .est-grp { display:block; font-size:11px; color:var(--ink-mute); margin-top:3px; }
+  .est-bar { display:inline-flex; align-items:center; gap:8px; justify-content:flex-end; font-weight:700; }
+  .est-bar .t { width:80px; height:7px; border-radius:4px; background:#ececec; overflow:hidden; }
+  .est-bar .f { display:block; height:100%; background:var(--dh-yellow); }
+  .est-foot { font-size:11px; color:var(--ink-mute); margin-top:7px; }
+  @media(max-width:720px){ .pld-row{grid-template-columns:1fr 1fr;gap:6px;} .pld-row .rt{text-align:left;} }
   /* ═══ SEGUIMIENTO POR MENTOR (interno) ═══ */
   .mn-strip { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:6px 0 18px; }
   .mn-k { background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius); padding:13px 15px; }
@@ -698,14 +729,13 @@
           <thead><tr>
             <th data-sort="colegio">Colegio <span class="arrow">↕</span></th>
             <th data-sort="pais">País <span class="arrow">↕</span></th>
-            <th data-sort="opMode">Operation Mode <span class="arrow">↕</span></th>
+            <th class="center" data-sort="opMode" title="Operation mode · N: Nativo · S: Santillana">Op <span class="arrow">↕</span></th>
             <th data-sort="mentor">Mentor <span class="arrow">↕</span></th>
             <th class="center" data-sort="semaforo">Semáforo <span class="arrow">↕</span></th>
             <th class="num" data-sort="estudiantes">Estudiantes <span class="arrow">↕</span></th>
             <th class="num" data-sort="avanceTotal" style="white-space:normal;min-width:94px">Avance ruta <span class="arrow">↕</span><small style="display:block;font-weight:600;text-transform:none;letter-spacing:0;font-size:9px;color:var(--ink-mute)">alumnos · prom.</small></th>
             <th class="num" data-sort="avanceOblig" style="white-space:normal;min-width:94px">Avance oblig. <span class="arrow">↕</span><small style="display:block;font-weight:600;text-transform:none;letter-spacing:0;font-size:9px;color:var(--ink-mute)">alumnos · prom.</small></th>
             <th class="num" data-sort="docentesPLD">Docentes PLD <span class="arrow">↕</span></th>
-            <th class="num" data-sort="rutasTotales">Rutas <span class="arrow">↕</span></th>
             <th class="num" data-sort="vitalidad">Vitalidad <span class="arrow">↕</span></th>
             <th data-sort="tipoComunicacion">Comunicación <span class="arrow">↕</span></th>
           </tr></thead>
@@ -1172,6 +1202,7 @@ function boot() {
   setupTabs();
   loadOnboarding().catch(e => console.error('Onboarding:', e));
   loadAvance();
+  loadEstudiantes();
 }
 
 function opt(v) { const o = document.createElement('option'); o.value = v; o.textContent = v; return o; }
@@ -1879,7 +1910,7 @@ function renderColegios(rowsArg) {
 
   const tbody = document.querySelector('#tbl-colegios tbody');
   if (!arr.length) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--ink-mute);padding:24px">Sin colegios para los filtros seleccionados.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--ink-mute);padding:24px">Sin colegios para los filtros seleccionados.</td></tr>';
     return;
   }
 
@@ -1890,17 +1921,16 @@ function renderColegios(rowsArg) {
            ${r.vitalidad.toFixed(1)}%
          </span>`;
     return `
-      <tr class="avrow" data-cod="${escapeHtml(r.cod)}" data-dpld="${r.docentesPLD == null ? '' : r.docentesPLD}">
+      <tr class="avrow" data-panel="impl" data-cal="${escapeHtml(r.calendario)}" data-cod="${escapeHtml(r.cod)}" data-dpld="${r.docentesPLD == null ? '' : r.docentesPLD}">
         <td>${escapeHtml(r.colegio)}${normKey(r.etapa) === 'piloto en curso' ? ' <span class="chip-piloto">Piloto</span>' : ''}</td>
         <td><span class="pais-cell"><span class="pais-flag" aria-hidden="true">${TM_FLAGS[r.pais] || '🏳️'}</span>${escapeHtml(r.pais)}</span></td>
-        <td>${escapeHtml(r.opMode)}</td>
+        <td class="center"><span class="op-chip" title="${escapeHtml(r.opMode)}">${opLetra(r.opMode)}</span></td>
         <td>${escapeHtml(r.mentor)}</td>
         <td class="center"><span class="sem-dot ${r.semaforo}" title="${SEM_LABELS[r.semaforo]}"></span></td>
         <td class="num">${fmt(r.estudiantes)}</td>
         <td class="num">${barNeutra(r.avanceTotal)}</td>
         <td class="num">${barNeutra(r.avanceOblig)}</td>
         <td class="num">${fmt(r.docentesPLD)}</td>
-        <td class="num">${fmt(r.rutasTotales)}</td>
         <td class="num">${vit}</td>
         <td>${escapeHtml(r.tipoComunicacion)}</td>
       </tr>
@@ -3082,7 +3112,9 @@ const avLvl = p => p >= 67 ? 'hi' : p >= 34 ? 'mid' : 'lo';
 
 function avDias(str) {
   if (!str) return null;
-  const d = new Date(String(str).trim().replace(' ', 'T'));
+  const m = String(str).trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (!m) return null;
+  const d = new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0));
   if (isNaN(d.getTime())) return null;
   return Math.floor((Date.now() - d.getTime()) / 86400000);
 }
@@ -3090,6 +3122,8 @@ function avDias(str) {
 function parseAvance(text) {
   const res = Papa.parse(text, { header: true, skipEmptyLines: true });
   const pick = (o, ...ks) => { for (const k of ks) { if (k in o && o[k] != null && String(o[k]).trim() !== '') return o[k]; } return ''; };
+  AV_HAS_FECHA = ((res.meta && res.meta.fields) || []).some(f => /fecha.*inscrip/.test(normKey(f)));
+  if (!AV_HAS_FECHA) console.warn('Avance PLD: la fuente no trae fecha_de_inscripcion; el desplegable muestra todas las inscripciones.');
   const by = {};
   (res.data || []).forEach(o => {
     const cod = codKeyAv(pick(o, 'Cod', 'COD', 'cod'));
@@ -3106,11 +3140,12 @@ function parseAvance(text) {
     const clf = parseInt(pick(o, 'clases_finalizadas') || '0', 10) || 0;
     const clt = parseInt(pick(o, 'clases_totales') || '0', 10) || 0;
     const dias = avDias(pick(o, 'ultimo_login'));
+    const fi = fechaISO(pick(o, 'fecha_de_inscripcion', 'fecha_inscripcion', 'fecha de inscripcion', 'Fecha de inscripción'));
     const c = (by[cod] = by[cod] || { docentes: [], _by: {} });
     const key = email || nombre;
     let doc = c._by[key];
     if (!doc) { doc = { nombre, email, tracks: [] }; c._by[key] = doc; c.docentes.push(doc); }
-    doc.tracks.push({ cert, pct, cf, ct, clf, clt, dias });
+    doc.tracks.push({ cert, pct, cf, ct, clf, clt, dias, fi });
   });
   Object.values(by).forEach(c => {
     delete c._by;
@@ -3140,6 +3175,7 @@ async function loadAvance() {
     AVANCE_LOADED = true;
     if (typeof renderOnbBody === 'function' && document.getElementById('onb-body') && typeof KICK_ALL !== 'undefined' && KICK_ALL.length) renderOnbBody();
     wireAvanceRows();
+    refreshOpenPanels();
     if (typeof renderMentores === 'function' && document.getElementById('tab-mentores')) renderMentores();
   } catch (e) { console.error('Avance PLD:', e); }
 }
@@ -3181,10 +3217,12 @@ function renderAvancePanel(cod, dpldCol) {
 }
 
 function wireAvanceRows() {
-  if (!AVANCE_LOADED) return;
+  if (!AVANCE_LOADED && !EST_LOADED) return;
   document.querySelectorAll('tr.avrow[data-cod]').forEach(tr => {
-    const c = AVANCE_BY_COD[codKeyAv(tr.dataset.cod)];
-    if (c && c.nDoc > 0 && !tr.classList.contains('has-av')) {
+    const k = codKeyAv(tr.dataset.cod);
+    const c = AVANCE_BY_COD[k];
+    const hasEst = tr.dataset.panel === 'impl' && EST_BY_COD[k] && EST_BY_COD[k].length > 0;
+    if (((c && c.nDoc > 0) || hasEst) && !tr.classList.contains('has-av')) {
       tr.classList.add('has-av');
       const first = tr.querySelector('td');
       if (first && !first.querySelector('.av-chev')) {
@@ -3202,11 +3240,270 @@ document.addEventListener('click', e => {
   if (!tr) return;
   const next = tr.nextElementSibling;
   if (next && next.classList.contains('av-detail')) { next.remove(); tr.classList.remove('open'); return; }
-  const dpld = (tr.dataset.dpld == null || tr.dataset.dpld === '') ? null : Number(tr.dataset.dpld);
   const det = document.createElement('tr'); det.className = 'av-detail';
-  det.innerHTML = `<td colspan="${tr.children.length}"><div class="av-inner">${renderAvancePanel(tr.dataset.cod, dpld)}</div></td>`;
+  det.innerHTML = `<td colspan="${tr.children.length}"><div class="av-inner">${panelHtml(tr)}</div></td>`;
   tr.parentNode.insertBefore(det, tr.nextSibling);
   tr.classList.add('open');
+});
+
+/* ═══════════ DESPLEGABLE · IMPLEMENTACIÓN CICLO ACTIVO ═══════════
+   Docentes (PLD) compacto + avance de estudiantes agrupado por nivel.
+   Ventanas del ciclo activo: actualizar estas fechas al arrancar cada ciclo.
+   · pldDesde: desde qué fecha de inscripción se muestran docentes en PLD.
+   · rutasDesde: desde qué fecha de inicio se consideran activas las rutas de estudiantes
+     (inicio de la ruta = inscripción más temprana de estudiantes en el track_id). */
+const CICLO_VENTANAS = {
+  A: { pldDesde: '2025-09-01', rutasDesde: '2026-01-01' },
+  B: { pldDesde: '2026-05-01', rutasDesde: '2026-07-01' }
+};
+const CSV_URL_ESTUDIANTES = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTeT3e-2kJk-8HsMqI-vx5p93uUq_ZZBjbj3jGO3_4QyBo-PuXFmZ3GpjsSBIwiYS5c9A_Cgfz-8e58/pub?output=csv';
+let EST_BY_COD = {};
+let EST_LOADED = false;
+let EST_ERROR = false;
+let AV_HAS_FECHA = false;
+
+const MESES_CORTO = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function mesAno(iso) { const [y, m] = String(iso).split('-'); return MESES_CORTO[((+m) || 1) - 1] + ' ' + y; }
+
+function fechaISO(str) {
+  const m = String(str || '').trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  return m ? m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0') : '';
+}
+
+function calKey(cal) {
+  const k = normKey(cal).replace(/[^a-z0-9]+/g, ' ').trim();
+  const m = k.match(/(?:^|cal(?:endario)?\s*)([ab])(?:\s|$)/);
+  return m ? m[1].toUpperCase() : null;
+}
+function ventanaCiclo(cal) {
+  const key = calKey(cal);
+  return Object.assign({ key }, CICLO_VENTANAS[key || 'A']);
+}
+
+function opLetra(op) {
+  const k = normKey(op);
+  if (k.includes('nativ')) return 'N';
+  if (k.includes('santillana')) return 'S';
+  return (op && op !== 'Sin dato') ? String(op).charAt(0).toUpperCase() : '—';
+}
+
+/* Nivel y grupo a partir del nombre de la certificación.
+   Santillana: "WEB1 (V4.ES) - 6º Sexto Secundaria - Grupo A (xxxx)" → WEB1 · 6º A
+   Nativo:     "NEW1 SENIOR TRACKS 1 (MIXED+PYTHON) 4to D 2026"      → ST1P · 4to D */
+const NIVEL_REGLAS = [
+  { re: /KICK\s*OFF\s*(\d)/i,                                        f: m => 'KOF' + m[1] },
+  { re: /WEB\s*BASICS\s*(\d)/i,                                      f: m => 'WEB' + m[1] },
+  { re: /SENIOR\s*TRACKS\s*(\d)\s*\(?\s*MIXED\s*\+\s*PYTHON\s*\)?/i,   f: m => 'ST' + m[1] + 'P' },
+  { re: /SENIOR\s*TRACKS\s*(\d)\s*\(?\s*MIXED\s*\+\s*JAVASCRIPT?\s*\)?/i, f: m => 'ST' + m[1] + 'J' },
+  { re: /(?:SENIOR\s*TRACKS\s*)?DATA\s*CERTIFICATE/i,                f: () => 'DATA' },
+  { re: /(?:SENIOR\s*TRACKS\s*)?AJS\s*CERTIFICATE/i,                 f: () => 'ADJS' },
+  { re: /DIGITAL\s*MINDSET|\bDMST\b/i,                               f: () => 'DMST' },
+  { re: /AI\s*FOR\s*DIGITAL\s*INNOVATION/i,                          f: () => 'AI-DI' }
+];
+function nivelYGrupo(cert) {
+  const s = String(cert || '').replace(/\s+/g, ' ').trim();
+  const sm = s.match(/^([A-Z]{2,4}\d[A-Z]?)\s*\(V[^)]*\)\s*-\s*(.*)$/i);
+  if (sm) {
+    const parts = sm[2].split(/\s+-\s+/);
+    const grado = (parts[0] || '').replace(/-$/, '').trim();
+    const gm = grado.match(/^(\d+)\s*º/);
+    const grupo = (parts[1] || '').replace(/\([^)]*\)\s*$/, '').replace(/^grupo\s+/i, '').trim();
+    return { nivel: sm[1].toUpperCase(), grupo: [gm ? gm[1] + 'º' : grado, grupo].filter(Boolean).join(' ') };
+  }
+  for (const r of NIVEL_REGLAS) {
+    const m = s.match(r.re);
+    if (m) {
+      const resto = s.slice(m.index + m[0].length).replace(/\s+(?:20)?\d{2}$/, '').trim();
+      return { nivel: r.f(m), grupo: resto };
+    }
+  }
+  return { nivel: 'OTRA', grupo: s };
+}
+const NIVEL_ORDEN = ['KOF', 'WEB', 'ST', 'DATA', 'ADJS', 'DMST', 'AI-DI', 'OTRA'];
+function nivelRank(n) {
+  const m = String(n).match(/^(KOF|WEB|ST)(\d)([A-Z]?)$/);
+  if (m) return NIVEL_ORDEN.indexOf(m[1]) * 100 + (+m[2]) * 10 + (m[3] === 'J' ? 1 : 0);
+  const i = NIVEL_ORDEN.indexOf(n);
+  return i >= 0 ? i * 100 : 9999;
+}
+
+function parseEstudiantes(text) {
+  const res = Papa.parse(text, { header: true, skipEmptyLines: true });
+  const pick = (o, ...ks) => { for (const k of ks) { if (k in o && o[k] != null && String(o[k]).trim() !== '') return o[k]; } return ''; };
+  const num = v => { const n = parseFloat(String(v || '0').replace(',', '.')); return isNaN(n) ? 0 : n; };
+  const tracks = {};
+  (res.data || []).forEach(o => {
+    const cod = codKeyAv(pick(o, 'cod', 'Cod', 'COD'));
+    if (!cod || ['N/A', '#N/A', 'NA', '#NA'].includes(cod)) return;
+    const tp = normKey(pick(o, 'track_pld'));
+    if (tp === 'true' || tp === '1' || tp === 'verdadero') return;
+    const cert = String(pick(o, 'certificacion', 'certificación')).trim();
+    if (!cert) return;
+    const tid = String(pick(o, 'track_id')).trim() || (cod + '|' + cert);
+    let t = tracks[tid];
+    if (!t) { const ng = nivelYGrupo(cert); t = tracks[tid] = { cod, cert, nivel: ng.nivel, grupo: ng.grupo, inicio: '', est: [] }; }
+    const fi = fechaISO(pick(o, 'fecha_de_inscripcion', 'fecha_inscripcion'));
+    if (fi && (!t.inicio || fi < t.inicio)) t.inicio = fi;
+    const rc = normKey(pick(o, 'ruta_completada'));
+    t.est.push({
+      pct: Math.max(0, Math.min(100, num(pick(o, 'progreso_ruta_pct')))),
+      clf: num(pick(o, 'clases_finalizadas')),
+      clt: num(pick(o, 'clases_totales')),
+      completa: rc === '1' || rc === 'true' || rc === 'verdadero'
+    });
+  });
+  const by = {};
+  Object.values(tracks).forEach(t => { (by[t.cod] = by[t.cod] || []).push(t); });
+  return by;
+}
+
+async function loadEstudiantes() {
+  try {
+    const r = await fetch(CSV_URL_ESTUDIANTES);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    EST_BY_COD = parseEstudiantes(await r.text());
+    EST_LOADED = true;
+    wireAvanceRows();
+  } catch (e) { EST_ERROR = true; console.error('Avance estudiantes:', e); }
+  refreshOpenPanels();
+}
+
+function resumenEstudiantes(cod, v) {
+  const all = EST_BY_COD[codKeyAv(cod)] || [];
+  const act = all.filter(t => t.inicio && t.inicio >= v.rutasDesde);
+  const niv = {};
+  act.forEach(t => {
+    const n = niv[t.nivel] = niv[t.nivel] || { nivel: t.nivel, grupos: [], nRutas: 0, est: [] };
+    n.nRutas++;
+    if (t.grupo) n.grupos.push(t.grupo);
+    t.est.forEach(e => n.est.push(e));
+  });
+  const rows = Object.values(niv).map(n => {
+    const k = n.est.length || 1;
+    const sum = f => n.est.reduce((s, e) => s + f(e), 0);
+    return {
+      nivel: n.nivel,
+      grupos: [...new Set(n.grupos)].sort((a, b) => a.localeCompare(b, 'es', { numeric: true })),
+      nRutas: n.nRutas, nEst: n.est.length,
+      prom: sum(e => e.pct) / k, clf: sum(e => e.clf) / k, clt: sum(e => e.clt) / k,
+      completaron: n.est.filter(e => e.completa).length,
+      sinIniciar: n.est.filter(e => e.pct === 0 && e.clf === 0).length
+    };
+  }).sort((a, b) => nivelRank(a.nivel) - nivelRank(b.nivel) || a.nivel.localeCompare(b.nivel));
+  return { rows, excluidas: all.length - act.length };
+}
+
+function pldFiltrado(cod, v) {
+  const c = AVANCE_BY_COD[codKeyAv(cod)];
+  if (!c) return [];
+  return c.docentes.map(d => {
+    const tracks = AV_HAS_FECHA ? d.tracks.filter(t => t.fi && t.fi >= v.pldDesde) : d.tracks;
+    if (!tracks.length) return null;
+    const ds = tracks.map(t => t.dias).filter(x => x != null);
+    const dias = ds.length ? Math.min(...ds) : null;
+    return { nombre: d.nombre, tracks, dias, dormido: dias == null ? true : dias > 14 };
+  }).filter(Boolean);
+}
+
+function renderImplPanel(cod, dpldCol, cal) {
+  const v = ventanaCiclo(cal);
+  const desdePld = mesAno(v.pldDesde), desdeRutas = mesAno(v.rutasDesde);
+  const calNote = v.key ? '' : '<div class="est-foot" style="margin:10px 0 0">Calendario sin definir: se aplican las fechas de Calendario A.</div>';
+
+  // ── Formación docente · PLD (compacto) ──
+  let pld;
+  if (!AVANCE_LOADED) {
+    pld = '<div class="pld-band"><div class="pld-top"><span class="pld-t">Formación docente · PLD</span><span class="pld-empty">Cargando…</span></div></div>';
+  } else {
+    const docs = pldFiltrado(cod, v);
+    const nDoc = docs.length;
+    if (!nDoc) {
+      pld = `<div class="pld-band"><div class="pld-top"><span class="pld-t">Formación docente · PLD</span><span class="pld-empty">Sin inscripciones desde ${desdePld}.</span></div></div>`;
+    } else {
+      const allT = docs.flatMap(d => d.tracks);
+      const prom = Math.round(allT.reduce((s, t) => s + t.pct, 0) / allT.length);
+      const act = docs.filter(d => !d.dormido).length, dor = nDoc - act;
+      let note = '';
+      if (dpldCol != null && !isNaN(dpldCol) && Number(dpldCol) !== nDoc) {
+        note = `<div class="av-note">El desglose muestra ${nDoc} docente(s) para este COD; la columna Docentes PLD marca ${Number(dpldCol)}. La diferencia puede deberse a que Docentes PLD cuenta inscriptos en 2026, mientras que el desglose toma inscripciones desde ${desdePld}.</div>`;
+      }
+      const rows = docs.flatMap(d => d.tracks.map(t => {
+        const acc = t.dias == null ? 'Sin acceso' : 'hace ' + t.dias + ' d';
+        return `<div class="pld-row">
+          <span class="nm" title="${escapeHtml(d.nombre + ' · ' + t.cert)}">${escapeHtml(d.nombre)}<small>${escapeHtml(t.cert)}</small></span>
+          <span><span class="av-chip ${d.dormido ? 'dorm' : 'act'}">${d.dormido ? 'Dormido' : 'Activo'}</span></span>
+          <span class="av-brow"><span class="av-t2"><span class="av-f2" style="width:${t.pct}%;background:#33507d"></span></span><span class="av-p2">${Math.round(t.pct)}%</span></span>
+          <span class="rt">${t.clf}/${t.clt} clases</span>
+          <span class="rt">${acc}</span>
+        </div>`;
+      })).join('');
+      pld = `<div class="pld-band">
+        <div class="pld-top">
+          <span class="pld-t">Formación docente · PLD</span>
+          <span><b>${nDoc}</b> docente${nDoc !== 1 ? 's' : ''}</span>
+          <span><b>${prom}%</b> avance prom.</span>
+          <span><b>${act}</b> activo${act !== 1 ? 's' : ''} · <b>${dor}</b> dormido${dor !== 1 ? 's' : ''}</span>
+          <span class="pld-win">Inscripciones desde ${desdePld}</span>
+          <button type="button" class="pld-toggle" aria-expanded="false">Ver docentes</button>
+        </div>
+        <div class="pld-list hidden">${note}${rows}</div>
+      </div>`;
+    }
+  }
+
+  // ── Avance de estudiantes por nivel ──
+  const head = `<div class="est-head"><h4>Avance de estudiantes por nivel</h4><span>Rutas activas · inicio desde ${desdeRutas}</span></div>`;
+  let est;
+  if (EST_ERROR) {
+    est = head + '<div class="av-empty">No se pudo cargar el avance de estudiantes.</div>';
+  } else if (!EST_LOADED) {
+    est = head + '<div class="av-empty">Cargando avance de estudiantes…</div>';
+  } else {
+    const r = resumenEstudiantes(cod, v);
+    const exc = r.excluidas ? `${r.excluidas} ruta${r.excluidas !== 1 ? 's' : ''} de ciclos anteriores excluida${r.excluidas !== 1 ? 's' : ''} (inicio antes de ${desdeRutas}).` : '';
+    if (!r.rows.length) {
+      est = head + `<div class="av-empty">Sin rutas activas desde ${desdeRutas}.${exc ? ' ' + exc : ''}</div>`;
+    } else {
+      const trs = r.rows.map(n => `<tr>
+        <td><span class="niv-badge">${escapeHtml(n.nivel)}</span>${n.grupos.length ? `<span class="est-grp">${escapeHtml(n.grupos.join(' · '))}</span>` : ''}</td>
+        <td class="num">${n.nRutas}</td>
+        <td class="num">${fmt(n.nEst)}</td>
+        <td class="num"><span class="est-bar"><span class="t"><span class="f" style="width:${Math.min(100, n.prom).toFixed(1)}%"></span></span>${Math.round(n.prom)}%</span></td>
+        <td class="num">${Math.round(n.clf)}/${Math.round(n.clt)}</td>
+        <td class="num">${fmt(n.completaron)}</td>
+        <td class="num">${fmt(n.sinIniciar)}</td>
+      </tr>`).join('');
+      est = head + `<table class="est-niv">
+        <thead><tr><th>Nivel</th><th class="num">Grupos</th><th class="num">Estudiantes</th><th class="num">Avance prom.</th><th class="num">Clases prom.</th><th class="num">Completaron</th><th class="num">Sin iniciar</th></tr></thead>
+        <tbody>${trs}</tbody></table>` + (exc ? `<div class="est-foot">${exc}</div>` : '');
+    }
+  }
+  return pld + est + calNote;
+}
+
+function panelHtml(tr) {
+  const dpld = (tr.dataset.dpld == null || tr.dataset.dpld === '') ? null : Number(tr.dataset.dpld);
+  return tr.dataset.panel === 'impl'
+    ? renderImplPanel(tr.dataset.cod, dpld, tr.dataset.cal)
+    : renderAvancePanel(tr.dataset.cod, dpld);
+}
+
+function refreshOpenPanels() {
+  document.querySelectorAll('tr.avrow.open').forEach(tr => {
+    const n = tr.nextElementSibling;
+    const inner = n && n.classList.contains('av-detail') ? n.querySelector('.av-inner') : null;
+    if (inner) inner.innerHTML = panelHtml(tr);
+  });
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('.pld-toggle');
+  if (!b) return;
+  const list = b.closest('.pld-band').querySelector('.pld-list');
+  if (!list) return;
+  const open = !list.classList.toggle('hidden');
+  b.textContent = open ? 'Ocultar docentes' : 'Ver docentes';
+  b.setAttribute('aria-expanded', String(open));
 });
 
 </script>
