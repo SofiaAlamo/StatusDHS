@@ -573,6 +573,12 @@
   .est-bar .f { display:block; height:100%; background:var(--dh-yellow); }
   .est-foot { font-size:11px; color:var(--ink-mute); margin-top:7px; }
   @media(max-width:720px){ .pld-row{grid-template-columns:1fr 1fr;gap:6px;} .pld-row .rt{text-align:left;} }
+  #tbl-colegios th, #tbl-colegios td { padding: 10px 8px; }
+  #tbl-colegios th.wrap { white-space: normal; line-height: 1.25; }
+  #tbl-colegios .vitalidad-cell { flex-direction: column; align-items: flex-end; gap: 3px; }
+  #tbl-colegios .vitalidad-bar { width: 44px; }
+  #tbl-colegios td.com { white-space: normal; max-width: 120px; font-size: 12px; line-height: 1.3; }
+  tr.av-detail .av-inner { position: sticky; left: 0; }
   /* ═══ SEGUIMIENTO POR MENTOR (interno) ═══ */
   .mn-strip { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:6px 0 18px; }
   .mn-k { background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius); padding:13px 15px; }
@@ -733,9 +739,9 @@
             <th data-sort="mentor">Mentor <span class="arrow">↕</span></th>
             <th class="center" data-sort="semaforo">Semáforo <span class="arrow">↕</span></th>
             <th class="num" data-sort="estudiantes">Estudiantes <span class="arrow">↕</span></th>
-            <th class="num" data-sort="avanceTotal" style="white-space:normal;min-width:94px">Avance ruta <span class="arrow">↕</span><small style="display:block;font-weight:600;text-transform:none;letter-spacing:0;font-size:9px;color:var(--ink-mute)">alumnos · prom.</small></th>
-            <th class="num" data-sort="avanceOblig" style="white-space:normal;min-width:94px">Avance oblig. <span class="arrow">↕</span><small style="display:block;font-weight:600;text-transform:none;letter-spacing:0;font-size:9px;color:var(--ink-mute)">alumnos · prom.</small></th>
-            <th class="num" data-sort="docentesPLD">Docentes PLD <span class="arrow">↕</span></th>
+            <th class="num" data-sort="avanceTotal" style="white-space:normal;min-width:70px">Avance ruta <span class="arrow">↕</span><small style="display:block;font-weight:600;text-transform:none;letter-spacing:0;font-size:9px;color:var(--ink-mute)">alumnos · prom.</small></th>
+            <th class="num" data-sort="avanceOblig" style="white-space:normal;min-width:70px">Avance oblig. <span class="arrow">↕</span><small style="display:block;font-weight:600;text-transform:none;letter-spacing:0;font-size:9px;color:var(--ink-mute)">alumnos · prom.</small></th>
+            <th class="num wrap" data-sort="docentesPLD">Docentes PLD <span class="arrow">↕</span></th>
             <th class="num" data-sort="vitalidad">Vitalidad <span class="arrow">↕</span></th>
             <th data-sort="tipoComunicacion">Comunicación <span class="arrow">↕</span></th>
           </tr></thead>
@@ -1932,7 +1938,7 @@ function renderColegios(rowsArg) {
         <td class="num">${barNeutra(r.avanceOblig)}</td>
         <td class="num">${fmt(r.docentesPLD)}</td>
         <td class="num">${vit}</td>
-        <td>${escapeHtml(r.tipoComunicacion)}</td>
+        <td class="com">${escapeHtml(r.tipoComunicacion)}</td>
       </tr>
     `;
   }).join('');
@@ -3243,6 +3249,7 @@ document.addEventListener('click', e => {
   const det = document.createElement('tr'); det.className = 'av-detail';
   det.innerHTML = `<td colspan="${tr.children.length}"><div class="av-inner">${panelHtml(tr)}</div></td>`;
   tr.parentNode.insertBefore(det, tr.nextSibling);
+  fitPanel(det);
   tr.classList.add('open');
 });
 
@@ -3291,24 +3298,25 @@ function opLetra(op) {
    Santillana: "WEB1 (V4.ES) - 6º Sexto Secundaria - Grupo A (xxxx)" → WEB1 · 6º A
    Nativo:     "NEW1 SENIOR TRACKS 1 (MIXED+PYTHON) 4to D 2026"      → ST1P · 4to D */
 const NIVEL_REGLAS = [
-  { re: /KICK\s*OFF\s*(\d)/i,                                        f: m => 'KOF' + m[1] },
+  { re: /KICK\s*OFF\s*(\d)(?:\.\d+)?/i,                              f: m => 'KOF' + m[1] },
   { re: /WEB\s*BASICS\s*(\d)/i,                                      f: m => 'WEB' + m[1] },
   { re: /SENIOR\s*TRACKS\s*(\d)\s*\(?\s*MIXED\s*\+\s*PYTHON\s*\)?/i,   f: m => 'ST' + m[1] + 'P' },
   { re: /SENIOR\s*TRACKS\s*(\d)\s*\(?\s*MIXED\s*\+\s*JAVASCRIPT?\s*\)?/i, f: m => 'ST' + m[1] + 'J' },
-  { re: /(?:SENIOR\s*TRACKS\s*)?DATA\s*CERTIFICATE/i,                f: () => 'DATA' },
+  { re: /SENIOR\s*TRACKS\s*PYTHON(?:\s*CERTIFICATE)?|PYTHON\s*CERTIFICATE/i, f: () => 'PYTH' },
+  { re: /SENIOR\s*TRACKS\s*DATA(?:\s*CERTIFICATE)?|DATA\s*CERTIFICATE/i, f: () => 'DATA' },
   { re: /(?:SENIOR\s*TRACKS\s*)?AJS\s*CERTIFICATE/i,                 f: () => 'ADJS' },
   { re: /DIGITAL\s*MINDSET|\bDMST\b/i,                               f: () => 'DMST' },
   { re: /AI\s*FOR\s*DIGITAL\s*INNOVATION/i,                          f: () => 'AI-DI' }
 ];
 function nivelYGrupo(cert) {
   const s = String(cert || '').replace(/\s+/g, ' ').trim();
-  const sm = s.match(/^([A-Z]{2,4}\d[A-Z]?)\s*\(V[^)]*\)\s*-\s*(.*)$/i);
+  const sm = s.match(/^([A-Z][A-Z0-9-]{1,6}(?:\.\d+)?)\s*\(V[^)]*\)\s*(?:-\s*(.*))?$/i);
   if (sm) {
-    const parts = sm[2].split(/\s+-\s+/);
+    const parts = (sm[2] || '').split(/\s+-\s+/);
     const grado = (parts[0] || '').replace(/-$/, '').trim();
     const gm = grado.match(/^(\d+)\s*º/);
     const grupo = (parts[1] || '').replace(/\([^)]*\)\s*$/, '').replace(/^grupo\s+/i, '').trim();
-    return { nivel: sm[1].toUpperCase(), grupo: [gm ? gm[1] + 'º' : grado, grupo].filter(Boolean).join(' ') };
+    return { nivel: sm[1].toUpperCase().replace(/\.\d+$/, ''), grupo: [gm ? gm[1] + 'º' : grado, grupo].filter(Boolean).join(' ') };
   }
   for (const r of NIVEL_REGLAS) {
     const m = s.match(r.re);
@@ -3319,7 +3327,7 @@ function nivelYGrupo(cert) {
   }
   return { nivel: 'OTRA', grupo: s };
 }
-const NIVEL_ORDEN = ['KOF', 'WEB', 'ST', 'DATA', 'ADJS', 'DMST', 'AI-DI', 'OTRA'];
+const NIVEL_ORDEN = ['KOF', 'WEB', 'ST', 'PYTH', 'DATA', 'ADJS', 'DMST', 'AI-DI', 'OTRA'];
 function nivelRank(n) {
   const m = String(n).match(/^(KOF|WEB|ST)(\d)([A-Z]?)$/);
   if (m) return NIVEL_ORDEN.indexOf(m[1]) * 100 + (+m[2]) * 10 + (m[3] === 'J' ? 1 : 0);
@@ -3344,16 +3352,18 @@ function parseEstudiantes(text) {
     if (!t) { const ng = nivelYGrupo(cert); t = tracks[tid] = { cod, cert, nivel: ng.nivel, grupo: ng.grupo, inicio: '', est: [] }; }
     const fi = fechaISO(pick(o, 'fecha_de_inscripcion', 'fecha_inscripcion'));
     if (fi && (!t.inicio || fi < t.inicio)) t.inicio = fi;
-    const rc = normKey(pick(o, 'ruta_completada'));
     t.est.push({
       pct: Math.max(0, Math.min(100, num(pick(o, 'progreso_ruta_pct')))),
+      cf: num(pick(o, 'cursos_finalizados')),
+      ct: num(pick(o, 'cursos_totales')),
       clf: num(pick(o, 'clases_finalizadas')),
-      clt: num(pick(o, 'clases_totales')),
-      completa: rc === '1' || rc === 'true' || rc === 'verdadero'
+      clt: num(pick(o, 'clases_totales'))
     });
   });
   const by = {};
   Object.values(tracks).forEach(t => { (by[t.cod] = by[t.cod] || []).push(t); });
+  const sinNivel = [...new Set(Object.values(tracks).filter(t => t.nivel === 'OTRA').map(t => t.cert))];
+  if (sinNivel.length) console.info('Rutas de estudiantes sin sigla identificada (' + sinNivel.length + '):', sinNivel);
   return by;
 }
 
@@ -3385,9 +3395,9 @@ function resumenEstudiantes(cod, v) {
       nivel: n.nivel,
       grupos: [...new Set(n.grupos)].sort((a, b) => a.localeCompare(b, 'es', { numeric: true })),
       nRutas: n.nRutas, nEst: n.est.length,
-      prom: sum(e => e.pct) / k, clf: sum(e => e.clf) / k, clt: sum(e => e.clt) / k,
-      completaron: n.est.filter(e => e.completa).length,
-      sinIniciar: n.est.filter(e => e.pct === 0 && e.clf === 0).length
+      prom: sum(e => e.pct) / k,
+      cf: sum(e => e.cf) / k, ct: sum(e => e.ct) / k,
+      clf: sum(e => e.clf) / k, clt: sum(e => e.clt) / k
     };
   }).sort((a, b) => nivelRank(a.nivel) - nivelRank(b.nivel) || a.nivel.localeCompare(b.nivel));
   return { rows, excluidas: all.length - act.length };
@@ -3440,11 +3450,11 @@ function renderImplPanel(cod, dpldCol, cal) {
       pld = `<div class="pld-band">
         <div class="pld-top">
           <span class="pld-t">Formación docente · PLD</span>
+          <button type="button" class="pld-toggle" aria-expanded="false">Ver docentes</button>
           <span><b>${nDoc}</b> docente${nDoc !== 1 ? 's' : ''}</span>
           <span><b>${prom}%</b> avance prom.</span>
           <span><b>${act}</b> activo${act !== 1 ? 's' : ''} · <b>${dor}</b> dormido${dor !== 1 ? 's' : ''}</span>
           <span class="pld-win">Inscripciones desde ${desdePld}</span>
-          <button type="button" class="pld-toggle" aria-expanded="false">Ver docentes</button>
         </div>
         <div class="pld-list hidden">${note}${rows}</div>
       </div>`;
@@ -3469,17 +3479,25 @@ function renderImplPanel(cod, dpldCol, cal) {
         <td class="num">${n.nRutas}</td>
         <td class="num">${fmt(n.nEst)}</td>
         <td class="num"><span class="est-bar"><span class="t"><span class="f" style="width:${Math.min(100, n.prom).toFixed(1)}%"></span></span>${Math.round(n.prom)}%</span></td>
+        <td class="num">${f1(n.cf)}/${f1(n.ct)}</td>
         <td class="num">${Math.round(n.clf)}/${Math.round(n.clt)}</td>
-        <td class="num">${fmt(n.completaron)}</td>
-        <td class="num">${fmt(n.sinIniciar)}</td>
       </tr>`).join('');
       est = head + `<table class="est-niv">
-        <thead><tr><th>Nivel</th><th class="num">Grupos</th><th class="num">Estudiantes</th><th class="num">Avance prom.</th><th class="num">Clases prom.</th><th class="num">Completaron</th><th class="num">Sin iniciar</th></tr></thead>
+        <thead><tr><th>Nivel</th><th class="num">Grupos</th><th class="num">Estudiantes</th><th class="num">Avance prom.</th><th class="num">Cursos prom.</th><th class="num">Clases prom.</th></tr></thead>
         <tbody>${trs}</tbody></table>` + (exc ? `<div class="est-foot">${exc}</div>` : '');
     }
   }
   return pld + est + calNote;
 }
+
+function f1(n) { const r = Math.round(n * 10) / 10; return Number.isInteger(r) ? String(r) : r.toFixed(1).replace('.', ','); }
+
+function fitPanel(det) {
+  const inner = det && det.querySelector('.av-inner');
+  const wrap = det && det.closest('div[style*="overflow-x"]');
+  if (inner) inner.style.maxWidth = wrap ? wrap.clientWidth + 'px' : '';
+}
+window.addEventListener('resize', () => document.querySelectorAll('tr.av-detail').forEach(fitPanel));
 
 function panelHtml(tr) {
   const dpld = (tr.dataset.dpld == null || tr.dataset.dpld === '') ? null : Number(tr.dataset.dpld);
