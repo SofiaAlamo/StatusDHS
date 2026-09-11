@@ -579,6 +579,9 @@
   #tbl-colegios .vitalidad-bar { width: 44px; }
   #tbl-colegios td.com { white-space: normal; max-width: 120px; font-size: 12px; line-height: 1.3; }
   tr.av-detail .av-inner { position: sticky; left: 0; }
+  .av-coment { background:#fff; border:1px solid var(--line); border-left:3px solid var(--dh-yellow); border-radius:8px; padding:10px 14px; margin-top:16px; }
+  .av-coment .h { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#7a5a00; margin-bottom:5px; }
+  .av-coment p { margin:0; font-size:13px; color:var(--ink-soft); line-height:1.55; white-space:pre-wrap; }
   #tbl-colegios .pld-cell .birrete { font-size: 13px; margin-left: 5px; cursor: help; }
   /* ═══ SEGUIMIENTO POR MENTOR (interno) ═══ */
   .mn-strip { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:6px 0 18px; }
@@ -3477,6 +3480,7 @@ function renderImplPanel(cod, dpldCol, cal) {
       const allT = docs.flatMap(d => d.tracks);
       const prom = Math.round(allT.reduce((s, t) => s + t.pct, 0) / allT.length);
       const act = docs.filter(d => !d.dormido).length, dor = nDoc - act;
+      const cert = docs.filter(d => d.tracks.some(t => t.pct >= 100)).length;
       let note = '';
       if (dpldCol != null && !isNaN(dpldCol) && Number(dpldCol) !== nDoc) {
         note = `<div class="av-note">El desglose muestra ${nDoc} docente(s) para este COD; la columna Docentes PLD marca ${Number(dpldCol)}. La diferencia puede deberse a que Docentes PLD cuenta inscriptos en 2026, mientras que el desglose toma inscripciones desde ${desdePld}.</div>`;
@@ -3484,7 +3488,7 @@ function renderImplPanel(cod, dpldCol, cal) {
       const rows = docs.flatMap(d => d.tracks.map(t => {
         const acc = t.dias == null ? 'Sin acceso' : 'hace ' + t.dias + ' d';
         return `<div class="pld-row">
-          <span class="nm" title="${escapeHtml(d.nombre + ' · ' + t.cert)}">${escapeHtml(d.nombre)}<small>${escapeHtml(t.cert)}</small></span>
+          <span class="nm" title="${escapeHtml(d.nombre + ' · ' + t.cert)}">${escapeHtml(d.nombre)}${t.pct >= 100 ? ' 🎓' : ''}<small>${escapeHtml(t.cert)}</small></span>
           <span><span class="av-chip ${d.dormido ? 'dorm' : 'act'}">${d.dormido ? 'Dormido' : 'Activo'}</span></span>
           <span class="av-brow"><span class="av-t2"><span class="av-f2" style="width:${t.pct}%;background:#33507d"></span></span><span class="av-p2">${Math.round(t.pct)}%</span></span>
           <span class="rt">${t.clf}/${t.clt} clases</span>
@@ -3498,6 +3502,7 @@ function renderImplPanel(cod, dpldCol, cal) {
           <span><b>${nDoc}</b> docente${nDoc !== 1 ? 's' : ''}</span>
           <span><b>${prom}%</b> avance prom.</span>
           <span><b>${act}</b> activo${act !== 1 ? 's' : ''} · <b>${dor}</b> dormido${dor !== 1 ? 's' : ''}</span>
+          <span title="Docentes que completaron al menos una capacitación PLD al 100%">🎓 <b>${cert}</b> certificado${cert !== 1 ? 's' : ''}</span>
           <span class="pld-win">Inscripciones desde ${desdePld}</span>
         </div>
         <div class="pld-list hidden">${note}${rows}</div>
@@ -3531,7 +3536,14 @@ function renderImplPanel(cod, dpldCol, cal) {
         <tbody>${trs}</tbody></table>` + (exc ? `<div class="est-foot">${exc}</div>` : '');
     }
   }
-  return pld + est + calNote;
+  // ── Comentario del mentor (columna Comentarios de la planilla de status) ──
+  const fila = RAW ? RAW.rows.find(r => codKeyAv(r.cod) === codKeyAv(cod)) : null;
+  const txt = fila && fila.comentarios ? fila.comentarios.trim() : '';
+  const coment = txt
+    ? `<div class="av-coment"><div class="h">💬 Comentario del mentor${fila.mentor && fila.mentor !== 'Sin asignar' ? ' · ' + escapeHtml(fila.mentor) : ''}</div><p>${escapeHtml(txt)}</p></div>`
+    : '';
+
+  return pld + est + coment + calNote;
 }
 
 function f1(n) { const r = Math.round(n * 10) / 10; return Number.isInteger(r) ? String(r) : r.toFixed(1).replace('.', ','); }
