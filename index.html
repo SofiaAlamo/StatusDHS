@@ -579,6 +579,7 @@
   #tbl-colegios .vitalidad-bar { width: 44px; }
   #tbl-colegios td.com { white-space: normal; max-width: 120px; font-size: 12px; line-height: 1.3; }
   tr.av-detail .av-inner { position: sticky; left: 0; }
+  #tbl-colegios .pld-cell .birrete { font-size: 13px; margin-right: 5px; cursor: help; }
   /* ═══ SEGUIMIENTO POR MENTOR (interno) ═══ */
   .mn-strip { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:6px 0 18px; }
   .mn-k { background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius); padding:13px 15px; }
@@ -1936,7 +1937,7 @@ function renderColegios(rowsArg) {
         <td class="num">${fmt(r.estudiantes)}</td>
         <td class="num">${barNeutra(r.avanceTotal)}</td>
         <td class="num">${barNeutra(r.avanceOblig)}</td>
-        <td class="num">${fmt(r.docentesPLD)}</td>
+        <td class="num pld-cell">${fmt(r.docentesPLD)}</td>
         <td class="num">${vit}</td>
         <td class="com">${escapeHtml(r.tipoComunicacion)}</td>
       </tr>
@@ -3113,7 +3114,7 @@ function drawCertifChart(rows) {
 const CSV_URL_AVANCE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSPFRKVvwUioC_7rKCblIMz7Cu7qvQpQI8LJM982dThQkT_hLqaJgwU2Js8OhEZag4aJ3_5GCfvzSwd/pub?gid=633679674&single=true&output=csv';
 let AVANCE_BY_COD = {};
 let AVANCE_LOADED = false;
-const codKeyAv = c => String(c || '').toUpperCase().replace(/\s+/g, '');
+const codKeyAv = c => String(c || '').toUpperCase().replace(/[\s\u200B-\u200D\uFEFF]+/g, '');
 const avLvl = p => p >= 67 ? 'hi' : p >= 34 ? 'mid' : 'lo';
 
 function avDias(str) {
@@ -3236,6 +3237,16 @@ function wireAvanceRows() {
         first.insertBefore(chev, first.firstChild);
       }
     }
+    // 🎓 junto al dato de Docentes PLD: al menos un docente completó una capacitación PLD al 100%
+    if (tr.dataset.panel === 'impl' && c && c.graduado) {
+      const cell = tr.querySelector('td.pld-cell');
+      if (cell && !cell.querySelector('.birrete')) {
+        const b = document.createElement('span');
+        b.className = 'birrete'; b.textContent = '🎓';
+        b.title = 'Al menos 1 docente completó una capacitación PLD al 100%';
+        cell.insertBefore(b, cell.firstChild);
+      }
+    }
   });
 }
 
@@ -3310,7 +3321,7 @@ const NIVEL_REGLAS = [
 ];
 function nivelYGrupo(cert) {
   const s = String(cert || '').replace(/\s+/g, ' ').trim();
-  const sm = s.match(/^([A-Z][A-Z0-9-]{1,6}(?:\.\d+)?)\s*\(V[^)]*\)\s*(?:-\s*(.*))?$/i);
+  const sm = s.match(/^([A-Z][A-Z0-9-]{1,6}(?:\.\d+)?)\s*\(\s*(?:V|\d)[^)]*\)\s*(?:-\s*(.*))?$/i);
   if (sm) {
     const parts = (sm[2] || '').split(/\s+-\s+/);
     const grado = (parts[0] || '').replace(/-$/, '').trim();
@@ -3335,18 +3346,49 @@ function nivelRank(n) {
   return i >= 0 ? i * 100 : 9999;
 }
 
+/* COD de estudiantes: si la query trae #N/A, se intenta recuperar
+   1) por el prefijo de la ruta nativa ("DAI1 WEB BASICS 1 …"), si ese COD existe en la planilla de status
+   2) por organization_name = "Nombre en PG" de la planilla de status */
+function normNombre(s) { return normKey(s).replace(/[^a-z0-9]+/g, ' ').trim(); }
+function codInvalido(k) { return !k || ['N/A', '#N/A', 'NA', '#NA', '#REF!', '#VALUE!', '#ERROR!'].includes(k); }
+function indiceCods() {
+  const rows = RAW ? [...(RAW.rows || []), ...(RAW.rowsNoActivos || [])] : [];
+  const cods = new Set(), porNombre = {};
+  rows.forEach(r => {
+    const k = codKeyAv(r.cod);
+    if (codInvalido(k)) return;
+    cods.add(k);
+    const n = normNombre(r.colegio);
+    if (n && n !== 'sin nombre') porNombre[n] = k;
+  });
+  return { cods, porNombre };
+}
+function resolverCod(codRaw, cert, org, idx) {
+  if (!codInvalido(codRaw)) return { cod: codRaw, via: 'cod' };
+  const tok = codKeyAv(String(cert).trim().split(/\s+/)[0]);
+  if (tok && idx.cods.has(tok) && !/^[A-Z][A-Z0-9.-]{1,8}\s*\(\s*(?:V|\d)/i.test(cert)) return { cod: tok, via: 'ruta' };
+  const n = normNombre(org);
+  if (n && idx.porNombre[n]) return { cod: idx.porNombre[n], via: 'nombre' };
+  return { cod: null, via: null };
+}
+
 function parseEstudiantes(text) {
   const res = Papa.parse(text, { header: true, skipEmptyLines: true });
   const pick = (o, ...ks) => { for (const k of ks) { if (k in o && o[k] != null && String(o[k]).trim() !== '') return o[k]; } return ''; };
   const num = v => { const n = parseFloat(String(v || '0').replace(',', '.')); return isNaN(n) ? 0 : n; };
   const tracks = {};
+  const idx = indiceCods();
+  const rec = { ruta: 0, nombre: 0, sinMatch: {} };
   (res.data || []).forEach(o => {
-    const cod = codKeyAv(pick(o, 'cod', 'Cod', 'COD'));
-    if (!cod || ['N/A', '#N/A', 'NA', '#NA'].includes(cod)) return;
     const tp = normKey(pick(o, 'track_pld'));
     if (tp === 'true' || tp === '1' || tp === 'verdadero') return;
     const cert = String(pick(o, 'certificacion', 'certificación')).trim();
     if (!cert) return;
+    const org = pick(o, 'organization_name');
+    const rc = resolverCod(codKeyAv(pick(o, 'cod', 'Cod', 'COD')), cert, org, idx);
+    if (!rc.cod) { const k = String(org || '(sin organización)').trim(); rec.sinMatch[k] = (rec.sinMatch[k] || 0) + 1; return; }
+    if (rc.via !== 'cod') rec[rc.via]++;
+    const cod = rc.cod;
     const tid = String(pick(o, 'track_id')).trim() || (cod + '|' + cert);
     let t = tracks[tid];
     if (!t) { const ng = nivelYGrupo(cert); t = tracks[tid] = { cod, cert, nivel: ng.nivel, grupo: ng.grupo, inicio: '', est: [] }; }
@@ -3362,6 +3404,8 @@ function parseEstudiantes(text) {
   });
   const by = {};
   Object.values(tracks).forEach(t => { (by[t.cod] = by[t.cod] || []).push(t); });
+  if (rec.ruta || rec.nombre) console.info('Estudiantes con COD #N/A recuperados — por ruta: ' + rec.ruta + ', por nombre: ' + rec.nombre);
+  if (Object.keys(rec.sinMatch).length) console.info('Estudiantes sin COD y sin match (por organización):', rec.sinMatch);
   const sinNivel = [...new Set(Object.values(tracks).filter(t => t.nivel === 'OTRA').map(t => t.cert))];
   if (sinNivel.length) console.info('Rutas de estudiantes sin sigla identificada (' + sinNivel.length + '):', sinNivel);
   return by;
