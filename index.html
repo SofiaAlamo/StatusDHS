@@ -1075,10 +1075,12 @@ function normalizeSemaforo(v) {
 
 function parsePct(v) {
   if (v == null || v === '') return null;
-  const s = String(v).replace('%', '').replace(',', '.').trim();
-  const n = parseFloat(s);
+  const raw = String(v).trim();
+  const n = parseFloat(raw.replace('%', '').replace(',', '.').trim());
   if (isNaN(n)) return null;
-  return n <= 1 ? n * 100 : n;
+  // Con signo % el valor YA está en puntos porcentuales: 0,34% son 0,34 (no 34).
+  // Sin signo, un valor ≤ 1 se interpreta como fracción (0,34 → 34%).
+  return raw.includes('%') ? n : (n <= 1 ? n * 100 : n);
 }
 
 function barNeutra(v) {
